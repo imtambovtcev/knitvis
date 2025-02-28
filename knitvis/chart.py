@@ -50,19 +50,41 @@ class KnittingChartJSONEncoder(json.JSONEncoder):
                         yield f'    {row_json}\n'
 
                 yield '  ]'
-            else:
-                # For regular values or the palette
-                for chunk in json.JSONEncoder(indent=2).iterencode(value):
-                    if chunk.startswith('[') or chunk.startswith('{'):
-                        # For nested structures, maintain proper indentation
-                        lines = chunk.split('\n')
-                        for i, line in enumerate(lines):
-                            if i == 0:
-                                yield line
-                            else:
-                                yield '\n  ' + line
+            elif key == 'palette':
+                # Special handling for palette to ensure proper formatting of nested colors
+                palette_dict = value
+                yield '{\n'
+
+                # Track if we need a comma between palette items
+                first_palette_item = True
+
+                for palette_key, palette_value in palette_dict.items():
+                    if not first_palette_item:
+                        yield ',\n'
                     else:
-                        yield chunk
+                        first_palette_item = False
+
+                    # Add the palette key
+                    yield f'    {json.dumps(palette_key)}: '
+
+                    # Special handling for colors array
+                    if palette_key == 'colors':
+                        yield '[\n'
+                        for j, color in enumerate(palette_value):
+                            color_json = json.dumps(color)
+                            if j < len(palette_value) - 1:
+                                yield f'      {color_json},\n'
+                            else:
+                                yield f'      {color_json}\n'
+                        yield '    ]'
+                    else:
+                        # For full_names and short_tags
+                        yield json.dumps(palette_value)
+
+                yield '\n  }'
+            else:
+                # For other values
+                yield json.dumps(value)
 
         yield '\n}'
 
