@@ -1,5 +1,7 @@
-import numpy as np
+import json
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.spatial import KDTree
 
 
@@ -112,3 +114,60 @@ class KnittingColorPalette:
             output_lines.append(
                 f"{self.full_names[i]:<8} -> {self.short_tags[i]:<3} -> {tuple(self.assigned_colors[i].tolist())}")
         return "\n".join(output_lines)
+
+    def to_dict(self):
+        """
+        Convert the color palette to a dictionary.
+
+        :return: Dictionary containing palette data
+        """
+        return {
+            'colors': self.assigned_colors.tolist(),
+            'full_names': self.full_names.tolist(),
+            'short_tags': self.short_tags.tolist()
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create a new KnittingColorPalette instance from a dictionary.
+
+        :param data: Dictionary containing palette data
+        :return: New KnittingColorPalette instance
+        :raises ValueError: If lengths of colors, full_names, and short_tags don't match
+        """
+        # Validate data lengths
+        colors_len = len(data['colors'])
+        if not (len(data['full_names']) == colors_len and len(data['short_tags']) == colors_len):
+            raise ValueError(
+                "Lengths of colors, full_names, and short_tags must match")
+
+        # Create instance using colors
+        palette = cls(data['colors'])
+
+        # Override the automatically assigned names and tags
+        palette.full_names = np.array(data['full_names'])
+        palette.short_tags = np.array(data['short_tags'])
+
+        return palette
+
+    def save_to_json(self, filepath):
+        """
+        Save the color palette to a JSON file.
+
+        :param filepath: Path to save the JSON file
+        """
+        with open(filepath, 'w') as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @classmethod
+    def from_json(cls, filepath):
+        """
+        Create a new KnittingColorPalette instance from a JSON file.
+
+        :param filepath: Path to the JSON file
+        :return: New KnittingColorPalette instance
+        """
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls.from_dict(data)

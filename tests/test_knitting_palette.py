@@ -1,6 +1,7 @@
-import pytest
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+
 from knitvis import KnittingColorPalette
 
 
@@ -66,3 +67,86 @@ def test_palette_str(sample_palette):
     assert "White2   -> W2  -> (255, 255, 254)" in output
     assert "Black    -> B   -> (0, 0, 0)" in output
     assert "Gray     -> Gy  -> (128, 128, 128)" in output
+
+
+def test_to_dict(sample_palette):
+    """Tests conversion of palette to dictionary format."""
+    data = sample_palette.to_dict()
+
+    # Check dictionary structure
+    assert 'colors' in data
+    assert 'full_names' in data
+    assert 'short_tags' in data
+
+    # Verify content
+    assert data['colors'][0] == [255, 255, 255]  # First color
+    assert 'White' in data['full_names']  # Check name exists
+    assert 'W' in data['short_tags']  # Check tag exists
+
+    # Verify lengths match
+    assert len(data['colors']) == len(
+        data['full_names']) == len(data['short_tags'])
+
+
+def test_from_dict(sample_palette):
+    """Tests creation of palette from dictionary format."""
+    original_data = sample_palette.to_dict()
+    reconstructed_palette = KnittingColorPalette.from_dict(original_data)
+
+    # Check all colors match
+    np.testing.assert_array_equal(
+        reconstructed_palette.assigned_colors,
+        sample_palette.assigned_colors
+    )
+
+    # Check names and tags match
+    assert np.array_equal(reconstructed_palette.full_names,
+                          sample_palette.full_names)
+    assert np.array_equal(reconstructed_palette.short_tags,
+                          sample_palette.short_tags)
+
+
+def test_json_roundtrip(sample_palette, tmp_path):
+    """Tests saving to and loading from JSON file."""
+    # Create temporary file path
+    json_path = tmp_path / "test_palette.json"
+
+    # Save to JSON
+    sample_palette.save_to_json(json_path)
+
+    # Load from JSON
+    loaded_palette = KnittingColorPalette.from_json(json_path)
+
+    # Verify all data matches
+    np.testing.assert_array_equal(
+        loaded_palette.assigned_colors,
+        sample_palette.assigned_colors
+    )
+    assert np.array_equal(loaded_palette.full_names, sample_palette.full_names)
+    assert np.array_equal(loaded_palette.short_tags, sample_palette.short_tags)
+
+
+def test_malformed_dict():
+    """Tests handling of malformed dictionary data."""
+    # Missing required keys
+    with pytest.raises(KeyError):
+        KnittingColorPalette.from_dict(
+            {'colors': []})  # Missing names and tags
+
+    # Empty data
+    empty_data = {
+        'colors': [],
+        'full_names': [],
+        'short_tags': []
+    }
+    palette = KnittingColorPalette.from_dict(empty_data)
+    assert palette.num_colors == 0
+
+    # Mismatched lengths
+    bad_data = {
+        'colors': [[255, 255, 255]],
+        'full_names': ['White', 'Extra'],
+        'short_tags': ['W']
+    }
+    with pytest.raises(ValueError):
+        KnittingColorPalette.from_dict(bad_data)

@@ -1,8 +1,8 @@
-import pytest
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pytest
+
 from knitvis import KnittingChart
-from knitvis import KnittingColorPalette
 
 
 @pytest.fixture
@@ -187,3 +187,83 @@ def test_invalid_indexing(sample_chart):
 
     with pytest.raises(IndexError):
         sample_chart[100, 100]  # Out-of-bounds index
+
+
+def test_to_dict(sample_chart):
+    """Tests conversion of chart to dictionary format."""
+    data = sample_chart.to_dict()
+
+    # Check dictionary structure
+    assert 'pattern' in data
+    assert 'color_tags' in data
+    assert 'palette' in data
+
+    # Check pattern content (should be text form)
+    assert data['pattern'][0][0] == 'K'
+    assert data['pattern'][0][1] == 'P'
+
+    # Check color tags exist and match palette
+    assert isinstance(data['color_tags'][0][0], str)
+    assert all(tag in sample_chart.color_palette.short_tags
+               for row in data['color_tags']
+               for tag in row)
+
+
+def test_from_dict(sample_chart):
+    """Tests creation of chart from dictionary format."""
+    original_data = sample_chart.to_dict()
+    reconstructed_chart = KnittingChart.from_dict(original_data)
+
+    # Check pattern matches
+    np.testing.assert_array_equal(
+        reconstructed_chart.get_text_pattern(),
+        sample_chart.get_text_pattern()
+    )
+
+    # Check colors match
+    np.testing.assert_array_equal(
+        reconstructed_chart.get_symbolic_colors(),
+        sample_chart.get_symbolic_colors()
+    )
+
+
+def test_json_roundtrip(sample_chart, tmp_path):
+    """Tests saving to and loading from JSON file."""
+    # Create temporary file path
+    json_path = tmp_path / "test_chart.json"
+
+    # Save to JSON
+    sample_chart.save_to_json(json_path)
+
+    # Load from JSON
+    loaded_chart = KnittingChart.from_json(json_path)
+
+    # Verify pattern matches
+    np.testing.assert_array_equal(
+        loaded_chart.get_text_pattern(),
+        sample_chart.get_text_pattern()
+    )
+
+    # Verify colors match
+    np.testing.assert_array_equal(
+        loaded_chart.get_symbolic_colors(),
+        sample_chart.get_symbolic_colors()
+    )
+
+
+def test_malformed_dict():
+    """Tests handling of malformed dictionary data."""
+    # Missing pattern
+    with pytest.raises(KeyError):
+        KnittingChart.from_dict({'color_tags': [], 'palette': {}})
+
+    # Invalid stitch names
+    bad_data = {
+        'pattern': [['INVALID', 'K']],
+        'color_tags': [['W', 'B']],
+        'palette': {'colors': [[255, 255, 255], [0, 0, 0]],
+                    'full_names': ['White', 'Black'],
+                    'short_tags': ['W', 'B']}
+    }
+    chart = KnittingChart.from_dict(bad_data)
+    assert chart.pattern[0][0] == -1  # Invalid stitch should be -1

@@ -1,6 +1,9 @@
-import numpy as np
+import json
+
 import matplotlib.pyplot as plt
-from .palette import KnittingColorPalette  # Adjust import as needed
+import numpy as np
+
+from .palette import KnittingColorPalette
 
 
 class KnittingChart:
@@ -244,3 +247,78 @@ class KnittingChart:
 
         else:
             raise TypeError("Indexing must be a tuple of two slices/indices.")
+
+    def to_dict(self):
+        """
+        Convert the knitting chart to a human-readable dictionary.
+        Uses stitch names for pattern and color tags for colors.
+
+        :return: Dictionary containing chart data
+        """
+        # Convert pattern indices to stitch names
+        text_pattern = self.get_text_pattern()
+
+        # Convert color indices to tags
+        color_tags = np.empty(self.color_indices.shape, dtype='<U4')
+        for i in range(self.rows):
+            for j in range(self.cols):
+                color_idx = self.color_indices[i, j]
+                color_tags[i, j] = self.color_palette.short_tags[color_idx]
+
+        return {
+            'pattern': text_pattern.tolist(),
+            'color_tags': color_tags.tolist(),
+            'palette': self.color_palette.to_dict()
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create a new KnittingChart instance from a dictionary.
+        Expects stitch names for pattern and color tags for colors.
+
+        :param data: Dictionary containing chart data
+        :return: New KnittingChart instance
+        """
+        # Convert text pattern to indices
+        pattern = np.array([[cls.stitch_to_index(stitch) for stitch in row]
+                            for row in data['pattern']], dtype=int)
+
+        # Recreate the color palette
+        palette = KnittingColorPalette.from_dict(data['palette'])
+
+        # Convert color tags to RGB values
+        rows, cols = len(data['color_tags']), len(data['color_tags'][0])
+        colors = np.zeros((rows, cols, 3), dtype=int)
+
+        for i in range(rows):
+            for j in range(cols):
+                tag = data['color_tags'][i][j]
+                rgb = palette.get_color_by_tag(tag)
+                if rgb is not None:
+                    colors[i, j] = rgb
+                else:
+                    colors[i, j] = cls.DEFAULT_COLOR
+
+        return cls(pattern, colors)
+
+    def save_to_json(self, filepath):
+        """
+        Save the knitting chart to a JSON file in human-readable format.
+
+        :param filepath: Path to save the JSON file
+        """
+        with open(filepath, 'w') as f:
+            json.dump(self.to_dict(), f, indent=2)
+
+    @classmethod
+    def from_json(cls, filepath):
+        """
+        Create a new KnittingChart instance from a JSON file.
+
+        :param filepath: Path to the JSON file
+        :return: New KnittingChart instance
+        """
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return cls.from_dict(data)
