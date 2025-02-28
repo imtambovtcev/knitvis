@@ -6,6 +6,67 @@ import numpy as np
 from .palette import KnittingColorPalette
 
 
+class KnittingChartJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for knitting chart data that formats 2D arrays nicely."""
+
+    def iterencode(self, obj, _one_shot=False):
+        """Custom iterencode to format 2D arrays with rows on single lines."""
+        if isinstance(obj, dict) and 'pattern' in obj and 'color_tags' in obj:
+            # Handle special case of our chart data structure
+            chunks = self.iterencode_chart_dict(obj)
+            for chunk in chunks:
+                yield chunk
+        else:
+            # Use standard encoding for everything else
+            for chunk in super().iterencode(obj, _one_shot=_one_shot):
+                yield chunk
+
+    def iterencode_chart_dict(self, chart_dict):
+        """Special handling for chart dictionary structure."""
+        yield '{\n'
+
+        # Track if we need a comma between items
+        first_item = True
+
+        for key, value in chart_dict.items():
+            if not first_item:
+                yield ',\n'
+            else:
+                first_item = False
+
+            # Add the key
+            yield f'  {json.dumps(key)}: '
+
+            # Special format for 2D arrays (pattern and color_tags)
+            if key in ['pattern', 'color_tags'] and isinstance(value, list) and value and isinstance(value[0], list):
+                yield '[\n'
+
+                # Process each row
+                for i, row in enumerate(value):
+                    row_json = json.dumps(row)
+                    if i < len(value) - 1:
+                        yield f'    {row_json},\n'
+                    else:
+                        yield f'    {row_json}\n'
+
+                yield '  ]'
+            else:
+                # For regular values or the palette
+                for chunk in json.JSONEncoder(indent=2).iterencode(value):
+                    if chunk.startswith('[') or chunk.startswith('{'):
+                        # For nested structures, maintain proper indentation
+                        lines = chunk.split('\n')
+                        for i, line in enumerate(lines):
+                            if i == 0:
+                                yield line
+                            else:
+                                yield '\n  ' + line
+                    else:
+                        yield chunk
+
+        yield '\n}'
+
+
 class KnittingChart:
     """Visualize a knitting pattern as a chart.
 
@@ -309,7 +370,7 @@ class KnittingChart:
         :param filepath: Path to save the JSON file
         """
         with open(filepath, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(self.to_dict(), f, cls=KnittingChartJSONEncoder)
 
     @classmethod
     def from_json(cls, filepath):

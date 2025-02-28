@@ -158,7 +158,7 @@ class KnittingColorPalette:
         :param filepath: Path to save the JSON file
         """
         with open(filepath, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(self.to_dict(), f, indent=2, sort_keys=False)
 
     @classmethod
     def from_json(cls, filepath):
