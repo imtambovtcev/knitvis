@@ -11,6 +11,7 @@ class ChartView(BaseChartView):
     def init_ui(self):
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setVisible(True)  # Explicitly set canvas to visible
         self.layout.addWidget(self.canvas)
 
         # Connect click event

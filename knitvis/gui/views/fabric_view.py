@@ -38,6 +38,7 @@ class FabricView(BaseChartView):
         # Create figure for rendering
         self.figure, self.ax = plt.subplots()
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setVisible(True)  # Explicitly set canvas to visible
 
         # Connect click event
         self.canvas.mpl_connect("button_press_event", self.on_canvas_click)
