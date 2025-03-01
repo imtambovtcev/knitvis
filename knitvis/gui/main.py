@@ -8,13 +8,19 @@ from PyQt5.QtCore import QSettings
 from knitvis.chart import KnittingChart
 from knitvis.gui.views import ChartView, FabricView
 from knitvis.gui.controllers import ChartController, FabricController
+from knitvis.gui.dialogs.settings_dialog import SettingsDialog
+from knitvis.gui.settings_manager import SettingsManager
 
 
 class KnitVisApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.chart = None
-        self.settings = QSettings("KnitVis", "KnitVis")
+        self.qt_settings = QSettings("KnitVis", "KnitVis")
+
+        # Initialize settings manager
+        self.settings_manager = SettingsManager()
+
         self.controllers = []
 
         self.init_ui()
@@ -75,6 +81,12 @@ class KnitVisApp(QMainWindow):
         color_palette_action.triggered.connect(self.show_color_palette)
         edit_menu.addAction(color_palette_action)
 
+        edit_menu.addSeparator()
+
+        settings_action = QAction('&Settings...', self)
+        settings_action.triggered.connect(self.show_settings_dialog)
+        edit_menu.addAction(settings_action)
+
     def create_new_chart(self, rows=10, cols=10):
         """Create a new chart with the specified dimensions"""
         import numpy as np
@@ -98,14 +110,20 @@ class KnitVisApp(QMainWindow):
         if not self.chart:
             return
 
+        # Get settings for the views
+        chart_settings = self.settings_manager.get_view_settings('chart')
+        fabric_settings = self.settings_manager.get_view_settings('fabric')
+
         # Create Chart View Tab
         chart_view = ChartView(self.chart)
+        chart_view.settings.update(chart_settings)  # Apply settings
         chart_controller = ChartController(chart_view, self.chart)
         self.controllers.append(chart_controller)
         self.tab_widget.addTab(chart_view, "Chart View")
 
         # Create Fabric View Tab
         fabric_view = FabricView(self.chart)
+        fabric_view.settings.update(fabric_settings)  # Apply settings
         fabric_controller = FabricController(fabric_view, self.chart)
         self.controllers.append(fabric_controller)
         self.tab_widget.addTab(fabric_view, "Fabric View")
@@ -121,7 +139,7 @@ class KnitVisApp(QMainWindow):
 
     def open_chart(self):
         """Open a chart from a file"""
-        last_dir = self.settings.value("last_directory", "")
+        last_dir = self.qt_settings.value("last_directory", "")
 
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Open Knitting Chart", last_dir,
@@ -130,9 +148,9 @@ class KnitVisApp(QMainWindow):
         if file_path:
             try:
                 self.chart = KnittingChart.from_json(file_path)
-                self.settings.setValue(
+                self.qt_settings.setValue(
                     "last_directory", os.path.dirname(file_path))
-                self.settings.setValue("last_file", file_path)
+                self.qt_settings.setValue("last_file", file_path)
                 self.setup_tabs()
             except Exception as e:
                 QMessageBox.critical(self, "Error Opening File",
@@ -140,7 +158,7 @@ class KnitVisApp(QMainWindow):
 
     def save_chart(self):
         """Save the chart to the current file or prompt for a new file"""
-        last_file = self.settings.value("last_file", "")
+        last_file = self.qt_settings.value("last_file", "")
 
         if last_file:
             self._save_to_file(last_file)
@@ -152,7 +170,7 @@ class KnitVisApp(QMainWindow):
         if not self.chart:
             return
 
-        last_dir = self.settings.value("last_directory", "")
+        last_dir = self.qt_settings.value("last_directory", "")
 
         file_path, _ = QFileDialog.getSaveFileName(
             self, "Save Knitting Chart", last_dir,
@@ -165,9 +183,9 @@ class KnitVisApp(QMainWindow):
         """Save the chart to the specified file"""
         try:
             self.chart.save_to_json(file_path)
-            self.settings.setValue(
+            self.qt_settings.setValue(
                 "last_directory", os.path.dirname(file_path))
-            self.settings.setValue("last_file", file_path)
+            self.qt_settings.setValue("last_file", file_path)
         except Exception as e:
             QMessageBox.critical(self, "Error Saving File",
                                  f"Could not save the file: {str(e)}")
@@ -178,6 +196,26 @@ class KnitVisApp(QMainWindow):
 
         dialog = ColorPaletteDialog(self)
         dialog.exec_()
+
+    def show_settings_dialog(self):
+        """Show the global settings dialog"""
+        dialog = SettingsDialog(self, self.settings_manager)
+        dialog.settingsApplied.connect(self.apply_settings_to_views)
+        dialog.exec_()
+
+    def apply_settings_to_views(self):
+        """Apply current settings to all views"""
+        for i in range(self.tab_widget.count()):
+            view = self.tab_widget.widget(i)
+
+            if isinstance(view, ChartView):
+                view.settings.update(
+                    self.settings_manager.get_view_settings('chart'))
+                view.update_view()
+            elif isinstance(view, FabricView):
+                view.settings.update(
+                    self.settings_manager.get_view_settings('fabric'))
+                view.update_view()
 
 
 if __name__ == "__main__":
