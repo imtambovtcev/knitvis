@@ -1,5 +1,6 @@
 import json
 
+import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -245,6 +246,111 @@ class KnittingChart:
         ax.set_yticks([])
         ax.set_frame_on(False)
 
+        return fig
+
+    def render_fabric(self, figsize=None, ratio=0.7, padding=0.01, show_outlines=False):
+        """
+        Renders a knitting chart as a fabric with V-shaped stitches.
+
+        Parameters:
+        -----------
+        figsize : tuple, optional
+            Figure dimensions (width, height) in inches
+        ratio : float
+            Vertical positioning ratio between rows (default=0.7)
+        padding : float
+            Padding between stitches (default=0.01)
+        show_outlines : bool
+            Whether to show black outlines on stitches (default=False)
+
+        Returns:
+        --------
+        matplotlib.figure.Figure
+            The rendered fabric figure
+        """
+
+        y_padding = 2*padding
+        x_padding = padding
+        thickness = ratio
+        stitch_height = thickness * 2
+        # Check if pattern contains only knit stitches
+        non_knit_indices = np.where(self.pattern != 0)
+        if len(non_knit_indices[0]) > 0:
+            row, col = non_knit_indices[0][0], non_knit_indices[1][0]
+            stitch_name = self.STITCH_ORDER[self.pattern[row, col]]
+            raise NotImplementedError(
+                f"Rendering for stitch type '{stitch_name}' is not yet implemented. "
+                f"Only knit stitches ('K') are currently supported.")
+
+        # Calculate figure dimensions
+        rows, cols = self.rows, self.cols
+
+        # Calculate figsize based on chart dimensions if not provided
+        if figsize is None:
+            # Use golden ratio for default aspect ratio
+            width = cols
+            height = rows * ratio + stitch_height
+            aspect_ratio = width / height
+            figsize = (8, 8 / aspect_ratio)
+
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Set outline properties
+        edgecolor = 'black' if show_outlines else 'none'
+        linewidth = 0.5 if show_outlines else 0
+
+        # Render stitches from bottom to top
+        for i in range(rows):
+            actual_row = rows - 1 - i  # Convert to actual row in the chart
+            y_offset = i * ratio
+
+            for j in range(cols):
+                # Get stitch color
+                color_index = self.color_indices[actual_row, j]
+                rgb = self.color_palette.get_color_by_index(color_index)
+                normalized_rgb = [c / 255 for c in rgb]
+
+                # Stitch coordinates (in grid units)
+                # Left leg of stitch
+                left_leg = [
+                    # Bottom right corner
+                    [j + 0.5 - x_padding, y_offset + y_padding],
+                    # Bottom right corner + thinness
+                    [j + 0.5 - x_padding, y_offset + thickness - y_padding],
+                    [j + x_padding, y_offset + stitch_height -
+                        y_padding],  # Top left corner
+                    # Top left corner - thinness
+                    [j + x_padding, y_offset + stitch_height - thickness + y_padding],
+                ]
+
+                # Right leg of stitch
+                right_leg = [
+                    [j + 0.5 + x_padding, y_offset + y_padding],
+                    [j + 0.5 + x_padding, y_offset + thickness - y_padding],
+                    [j + 1 - x_padding, y_offset + stitch_height - y_padding],
+                    [j + 1 - x_padding, y_offset +
+                        stitch_height - thickness + y_padding],
+                ]
+
+                # Render the stitch legs
+                left_patch = patches.Polygon(left_leg, closed=True, facecolor=normalized_rgb,
+                                             edgecolor=edgecolor, linewidth=linewidth,
+                                             zorder=i*2)
+                right_patch = patches.Polygon(right_leg, closed=True, facecolor=normalized_rgb,
+                                              edgecolor=edgecolor, linewidth=linewidth,
+                                              zorder=i*2)
+                ax.add_patch(left_patch)
+                ax.add_patch(right_patch)
+
+        # Set axis limits with a small margin
+        margin = 0.05
+        ax.set_xlim(-margin, cols + margin)
+        ax.set_ylim(-margin, rows * ratio + stitch_height + margin)
+
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        plt.tight_layout()
         return fig
 
     def __str__(self):
