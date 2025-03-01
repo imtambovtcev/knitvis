@@ -147,11 +147,24 @@ class KnitVisApp(QMainWindow):
 
         if file_path:
             try:
-                self.chart = KnittingChart.from_json(file_path)
+                # Load the chart
+                new_chart = KnittingChart.from_json(file_path)
+
+                # Save file path in settings
                 self.qt_settings.setValue(
                     "last_directory", os.path.dirname(file_path))
                 self.qt_settings.setValue("last_file", file_path)
+
+                # Set the chart and clear existing tabs, just like in create_new_chart
+                self.chart = new_chart
+
+                # Clear existing tabs and controllers before creating new ones
+                self.tab_widget.clear()
+                self.controllers.clear()
+
+                # Create tabs for different visualizations
                 self.setup_tabs()
+
             except Exception as e:
                 QMessageBox.critical(self, "Error Opening File",
                                      f"Could not open the file: {str(e)}")
