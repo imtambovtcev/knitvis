@@ -150,3 +150,58 @@ def test_malformed_dict():
     }
     with pytest.raises(ValueError):
         KnittingColorPalette.from_dict(bad_data)
+
+
+def test_add_color(sample_palette):
+    """Tests adding a new color to the palette."""
+    initial_count = sample_palette.num_colors
+
+    # Add a new color
+    new_color = (255, 0, 255)  # Magenta
+    index = sample_palette.add_color(new_color)
+
+    # Verify color was added
+    assert sample_palette.num_colors == initial_count + 1
+    assert index == initial_count  # Index should be the previous count
+    assert sample_palette.get_color_by_index(index) == new_color
+
+    # Verify naming logic
+    # Should be named as a shade of purple
+    assert "Purple" in sample_palette.full_names[-1]
+    # Short tag should start with P
+    assert sample_palette.short_tags[-1].startswith('P')
+
+
+def test_add_existing_color(sample_palette):
+    """Tests adding a color that already exists in the palette."""
+    initial_count = sample_palette.num_colors
+    existing_color = (0, 0, 0)  # Black, already in the palette
+
+    # Add the existing color
+    index = sample_palette.add_color(existing_color)
+
+    # Verify no new color was added
+    assert sample_palette.num_colors == initial_count
+    assert index < initial_count  # Should return existing index
+    assert sample_palette.get_color_by_index(index) == existing_color
+
+
+def test_color_naming_logic(sample_palette):
+    """Tests that colors are named with appropriate incremental suffixes."""
+    # Add two more white-like colors
+    white1 = (254, 254, 254)
+    white2 = (253, 253, 253)
+
+    idx1 = sample_palette.add_color(white1)
+    idx2 = sample_palette.add_color(white2)
+
+    # Check naming logic - should be something like White3, White4
+    # since White and White2 already exist
+    full_name1 = sample_palette.full_names[idx1]
+    full_name2 = sample_palette.full_names[idx2]
+
+    assert full_name1.startswith('White')
+    assert full_name2.startswith('White')
+    assert full_name1 != 'White'  # Should have a number suffix
+    assert full_name2 != 'White'
+    assert full_name1 != full_name2  # Should be different names

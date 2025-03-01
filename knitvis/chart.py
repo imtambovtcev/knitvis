@@ -353,6 +353,145 @@ class KnittingChart:
         plt.tight_layout()
         return fig
 
+    def get_stitch(self, row, col):
+        """
+        Get the stitch type and color at the specified position.
+
+        Parameters:
+        -----------
+        row : int
+            Row index
+        col : int
+            Column index
+
+        Returns:
+        --------
+        tuple
+            (stitch_type, color_rgb) where stitch_type is the stitch name (string)
+            and color_rgb is a tuple of (r, g, b) values
+        """
+        if 0 <= row < self.rows and 0 <= col < self.cols:
+            stitch_idx = self.pattern[row, col]
+            stitch_type = self.STITCH_ORDER[stitch_idx] if 0 <= stitch_idx < len(
+                self.STITCH_ORDER) else 'Unknown'
+
+            color_idx = self.color_indices[row, col]
+            color_rgb = self.color_palette.get_color_by_index(color_idx)
+
+            return stitch_type, color_rgb
+        else:
+            raise IndexError(
+                f"Position ({row, col}) is out of bounds for chart of size {self.rows}x{self.cols}")
+
+    def set_stitch(self, row, col, stitch_type=None, color_rgb=None):
+        """
+        Set the stitch type and/or color at the specified position.
+
+        Parameters:
+        -----------
+        row : int
+            Row index
+        col : int
+            Column index
+        stitch_type : str, optional
+            Stitch type name (e.g., 'K', 'P', 'YO', etc.)
+        color_rgb : tuple, optional
+            RGB color tuple (r, g, b)
+
+        Returns:
+        --------
+        bool
+            True if the operation was successful
+        """
+        if not (0 <= row < self.rows and 0 <= col < self.cols):
+            raise IndexError(
+                f"Position ({row}, {col}) is out of bounds for chart of size {self.rows}x{self.cols}")
+
+        # Store the original color index for later cleanup check
+        original_color_idx = self.color_indices[row, col]
+
+        # Update stitch type if provided
+        if stitch_type is not None:
+            stitch_idx = self.stitch_to_index(stitch_type)
+            if stitch_idx != -1:
+                self.pattern[row, col] = stitch_idx
+            else:
+                raise ValueError(f"Unknown stitch type: {stitch_type}")
+
+        # Update color if provided
+        if color_rgb is not None:
+            color_rgb = tuple(int(c)
+                              for c in color_rgb)  # Ensure integer values
+
+            # Check if this color already exists in the palette
+            color_idx = self.color_palette.get_index_by_color(color_rgb)
+
+            if color_idx is None or color_idx == -1:
+                # Need to add the color to the palette
+                if hasattr(self.color_palette, 'add_color'):
+                    # Use the add_color method if available
+                    color_idx = self.color_palette.add_color(color_rgb)
+                else:
+                    # Create a new palette with the additional color
+                    unique_colors = [self.color_palette.get_color_by_index(i)
+                                     for i in range(self.color_palette.num_colors)]
+                    unique_colors.append(color_rgb)
+                    self.color_palette = KnittingColorPalette(unique_colors)
+                    color_idx = self.color_palette.num_colors - 1
+
+            # Update the color index for this position
+            if color_idx is not None:
+                self.color_indices[row, col] = color_idx
+
+                # If we've changed to a different color, check if the original color is still used
+                if original_color_idx != color_idx:
+                    # Check if the original color is still used elsewhere
+                    if not np.any(self.color_indices == original_color_idx):
+                        # Original color is no longer used, optimize the palette
+                        self.optimize_color_palette()
+
+        return True
+
+    def optimize_color_palette(self):
+        """
+        Remove unused colors from the palette and update color indices accordingly.
+        This ensures the palette stays as small as possible.
+
+        Returns:
+        --------
+        bool
+            True if any colors were removed, False otherwise
+        """
+        # Find which color indices are actually used in the chart
+        used_indices = np.unique(self.color_indices)
+
+        # If all colors are used, no optimization needed
+        if len(used_indices) == self.color_palette.num_colors:
+            return False
+
+        # Create a list of the colors that are actually used
+        used_colors = [self.color_palette.get_color_by_index(
+            idx) for idx in used_indices]
+
+        # Map from current indices to new indices
+        index_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(
+            used_indices)}
+
+        # Create a new color palette with just the used colors
+        new_palette = KnittingColorPalette(used_colors)
+
+        # Update all indices in the chart using the mapping
+        new_indices = np.zeros_like(self.color_indices)
+        for i in range(self.rows):
+            for j in range(self.cols):
+                new_indices[i, j] = index_mapping[self.color_indices[i, j]]
+
+        # Update the chart's color indices and palette
+        self.color_indices = new_indices
+        self.color_palette = new_palette
+
+        return True
+
     def __str__(self):
         """Returns a formatted string representation of the knitting chart."""
         pattern_str = "Knitting Chart:\n"

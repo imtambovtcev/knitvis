@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
-from knitvis import KnittingChart
+from knitvis import KnittingChart, KnittingColorPalette
 
 
 @pytest.fixture
@@ -267,3 +267,137 @@ def test_malformed_dict():
     }
     chart = KnittingChart.from_dict(bad_data)
     assert chart.pattern[0][0] == -1  # Invalid stitch should be -1
+
+
+def test_get_stitch(sample_chart):
+    """Tests retrieving stitch type and color at a specific position."""
+    # Get stitch at position (0, 0) - should be 'K' (knit) with white color
+    stitch_type, color_rgb = sample_chart.get_stitch(0, 0)
+    assert stitch_type == 'K'
+    assert color_rgb == (255, 255, 255)
+
+    # Get stitch at position (1, 2) - should be 'YO' with pink color
+    stitch_type, color_rgb = sample_chart.get_stitch(1, 2)
+    assert stitch_type == 'YO'
+    assert color_rgb == (255, 182, 193)
+
+    # Test out of bounds
+    with pytest.raises(IndexError):
+        sample_chart.get_stitch(100, 100)
+
+
+def test_set_stitch(sample_chart):
+    """Tests setting stitch type and color at a specific position."""
+    # Set only stitch type
+    sample_chart.set_stitch(0, 0, stitch_type='P')
+    assert sample_chart.pattern[0, 0] == 1  # 'P' has index 1
+    stitch_type, old_color = sample_chart.get_stitch(0, 0)
+    assert stitch_type == 'P'
+
+    # Set only color
+    new_color = (100, 100, 255)  # Light blue
+    sample_chart.set_stitch(0, 0, color_rgb=new_color)
+    stitch_type, color_rgb = sample_chart.get_stitch(0, 0)
+    assert color_rgb == new_color
+    assert stitch_type == 'P'  # Stitch type should remain unchanged
+
+    # Set both stitch type and color
+    sample_chart.set_stitch(1, 1, stitch_type='YO', color_rgb=(255, 0, 255))
+    stitch_type, color_rgb = sample_chart.get_stitch(1, 1)
+    assert stitch_type == 'YO'
+    assert color_rgb == (255, 0, 255)
+
+    # Test invalid stitch type
+    with pytest.raises(ValueError):
+        sample_chart.set_stitch(0, 0, stitch_type='Invalid')
+
+    # Test out of bounds
+    with pytest.raises(IndexError):
+        sample_chart.set_stitch(100, 100, stitch_type='K')
+
+
+def test_set_stitch_adds_color():
+    """Tests that setting a stitch with new color adds it to the palette."""
+    # Create a simple chart with a single color
+    pattern = np.array([[0, 0], [0, 0]])
+    colors = np.array([
+        [[255, 0, 0], [255, 0, 0]],  # All red
+        [[255, 0, 0], [255, 0, 0]]   # All red
+    ])
+
+    chart = KnittingChart(pattern, colors)
+
+    # Verify we have just one color in the palette
+    assert chart.color_palette.num_colors == 1
+
+    # Set a stitch with a new color
+    new_color = (50, 200, 150)  # A color not in the palette
+    chart.set_stitch(0, 0, color_rgb=new_color)
+
+    # Verify color was added to the palette
+    assert chart.color_palette.num_colors == 2
+    assert chart.color_palette.get_index_by_color(new_color) is not None
+
+    # Verify the stitch now has the new color
+    _, color_rgb = chart.get_stitch(0, 0)
+    assert color_rgb == new_color
+
+
+def test_optimize_color_palette():
+    """Tests that unused colors are removed from the palette when optimizing."""
+    # Create a chart with several colors but use only one
+    pattern = np.array([[0, 0], [0, 0]])
+
+    # Create a chart where all positions use the same color
+    chart = KnittingChart(pattern, (255, 0, 0))  # All red
+
+    # Replace the color palette with one that has unused colors
+    chart.color_palette = KnittingColorPalette([
+        (255, 0, 0),    # Red - used by all positions
+        (0, 255, 0),    # Green - unused
+        (0, 0, 255),    # Blue - unused
+    ])
+
+    # Verify initial state
+    assert chart.color_palette.num_colors == 3
+
+    # Optimize the palette
+    chart.optimize_color_palette()
+
+    # Verify that only the used color remains
+    assert chart.color_palette.num_colors == 1
+    assert chart.color_palette.get_color_by_index(0) == (255, 0, 0)
+
+
+def test_optimize_color_palette_preserves_used_colors():
+    """Tests that optimize_color_palette only removes unused colors."""
+    # Create a chart with 4 colors, but only 2 are actually used
+    pattern = np.array([[0, 0], [0, 0]])
+    colors = np.array([
+        [[255, 0, 0], [255, 0, 0]],  # All red
+        [[255, 0, 0], [255, 0, 0]]   # All red
+    ])
+
+    # Create the chart
+    chart = KnittingChart(pattern, colors)
+
+    # Replace the palette with one having unused colors
+    chart.color_palette = KnittingColorPalette([
+        (255, 0, 0),    # Red - used
+        (0, 255, 0),    # Green - unused
+        (0, 0, 255),    # Blue - unused
+        (255, 255, 0)   # Yellow - unused
+    ])
+
+    # Set all indices to use the red color (index 0)
+    chart.color_indices.fill(0)
+
+    # Optimize the palette
+    chart.optimize_color_palette()
+
+    # Should now have only 1 color in palette
+    assert chart.color_palette.num_colors == 1
+    assert chart.color_palette.get_color_by_index(0) == (255, 0, 0)
+
+    # All indices should still be 0
+    assert np.all(chart.color_indices == 0)

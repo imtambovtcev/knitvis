@@ -171,3 +171,50 @@ class KnittingColorPalette:
         with open(filepath, 'r') as f:
             data = json.load(f)
         return cls.from_dict(data)
+
+    def add_color(self, color):
+        """
+        Add a new color to the palette.
+
+        Parameters:
+        -----------
+        color : tuple
+            RGB tuple (r, g, b)
+
+        Returns:
+        --------
+        int
+            Index of the new color in the palette
+        """
+        # Convert to numpy array and ensure integer type
+        color = np.array(color, dtype=int)
+
+        # Check if color already exists
+        existing_idx = self.get_index_by_color(color)
+        if existing_idx is not None and existing_idx != -1:
+            return existing_idx
+
+        # Find closest reference color for naming
+        ref_colors = np.array(
+            [v[1] for v in self.REFERENCE_COLORS.values()], dtype=int)
+        color_tree = KDTree(ref_colors)
+        _, idx = color_tree.query(color)
+        base_name, short_tag = list(self.REFERENCE_COLORS.keys())[
+            idx], list(self.REFERENCE_COLORS.values())[idx][0]
+
+        # Add counting suffix if needed
+        count = np.sum(np.char.startswith(self.full_names, base_name))
+        if count > 0:
+            full_name = f"{base_name}{count+1}"
+            short_code = f"{short_tag}{count+1}"
+        else:
+            full_name = base_name
+            short_code = short_tag
+
+        # Add the new color
+        self.assigned_colors = np.vstack([self.assigned_colors, color])
+        self.full_names = np.append(self.full_names, full_name)
+        self.short_tags = np.append(self.short_tags, short_code)
+        self.num_colors += 1
+
+        return self.num_colors - 1  # Return index of the newly added color
