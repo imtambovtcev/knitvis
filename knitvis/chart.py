@@ -248,7 +248,7 @@ class KnittingChart:
 
         return fig
 
-    def render_fabric(self, figsize=None, ratio=0.7, padding=0.01, show_outlines=False):
+    def render_fabric(self, figsize=None, ratio=0.7, padding=0.01, show_outlines=False, ax=None):
         """
         Renders a knitting chart as a fabric with V-shaped stitches.
 
@@ -262,17 +262,19 @@ class KnittingChart:
             Padding between stitches (default=0.01)
         show_outlines : bool
             Whether to show black outlines on stitches (default=False)
+        ax : matplotlib.axes.Axes, optional
+            An existing axes to draw on. If None, a new figure and axes will be created.
 
         Returns:
         --------
         matplotlib.figure.Figure
             The rendered fabric figure
         """
-
         y_padding = 2*padding
         x_padding = padding
         thickness = ratio
         stitch_height = thickness * 2
+
         # Check if pattern contains only knit stitches
         non_knit_indices = np.where(self.pattern != 0)
         if len(non_knit_indices[0]) > 0:
@@ -285,15 +287,20 @@ class KnittingChart:
         # Calculate figure dimensions
         rows, cols = self.rows, self.cols
 
-        # Calculate figsize based on chart dimensions if not provided
-        if figsize is None:
-            # Use golden ratio for default aspect ratio
-            width = cols
-            height = rows * ratio + stitch_height
-            aspect_ratio = width / height
-            figsize = (8, 8 / aspect_ratio)
+        # Create figure and axes if not provided
+        if ax is None:
+            # Calculate figsize based on chart dimensions if not provided
+            if figsize is None:
+                # Use golden ratio for default aspect ratio
+                width = cols
+                height = rows * ratio + stitch_height
+                aspect_ratio = width / height
+                figsize = (8, 8 / aspect_ratio)
 
-        fig, ax = plt.subplots(figsize=figsize)
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            # Use the provided axes
+            fig = ax.figure
 
         # Set outline properties
         edgecolor = 'black' if show_outlines else 'none'
