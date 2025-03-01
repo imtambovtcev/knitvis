@@ -80,6 +80,14 @@ class ChartNavigationWidget(QFrame):
         # Add bottom controls to main layout
         main_layout.addLayout(bottom_controls, 1, 0)
 
+        # === Full Chart Button (Bottom Right) ===
+        self.full_chart_button = QPushButton("🔍")
+        self.full_chart_button.setToolTip("View Full Chart")
+        self.full_chart_button.setFixedSize(24, 24)
+        self.full_chart_button.clicked.connect(self.show_full_chart)
+        main_layout.addWidget(self.full_chart_button, 1,
+                              1, Qt.AlignBottom | Qt.AlignRight)
+
     def _emit_viewport_changed(self):
         """Emit signal when viewport parameters change"""
         # Update viewport display
@@ -156,3 +164,34 @@ class ChartNavigationWidget(QFrame):
 
         # Update viewport display
         self._update_viewport_display()
+
+    def show_full_chart(self):
+        """Reset view to show the full chart"""
+        # Block signals temporarily to avoid multiple updates
+        self.row_pos.blockSignals(True)
+        self.col_pos.blockSignals(True)
+        self.row_zoom_slider.blockSignals(True)
+        self.col_zoom_slider.blockSignals(True)
+
+        try:
+            # Reset position to start
+            self.row_pos.setValue(0)
+            self.col_pos.setValue(0)
+
+            # Set zoom to show the entire chart (with limits for very large charts)
+            max_rows = min(self.chart_rows, 100)
+            max_cols = min(self.chart_cols, 100)
+
+            # Set zoom levels
+            self.row_zoom_slider.setValue(max_rows)
+            self.col_zoom_slider.setValue(max_cols)
+
+        finally:
+            # Re-enable signals
+            self.row_pos.blockSignals(False)
+            self.col_pos.blockSignals(False)
+            self.row_zoom_slider.blockSignals(False)
+            self.col_zoom_slider.blockSignals(False)
+
+            # Emit viewport changed signal once for the complete update
+            self._emit_viewport_changed()

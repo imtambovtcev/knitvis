@@ -81,3 +81,33 @@ def test_chart_navigation_viewport_display(chart_navigation):
     display_text = chart_navigation.viewport_display.text()
     assert "Rows 6-15" in display_text
     assert "Cols 11-25" in display_text
+
+
+def test_full_chart_button(qtbot, chart_navigation):
+    """Test that the full chart button works correctly."""
+    # Set up a chart size and modify viewport
+    chart_navigation.chart_rows = 50
+    chart_navigation.chart_cols = 40
+
+    # Set position to middle of chart
+    chart_navigation.row_pos.setValue(20)
+    chart_navigation.col_pos.setValue(15)
+
+    # Set zoom to partial view
+    chart_navigation.row_zoom_slider.setValue(10)
+    chart_navigation.col_zoom_slider.setValue(15)
+
+    # Create signal spy for viewport change
+    with qtbot.waitSignal(chart_navigation.viewportChanged) as spy:
+        # Click the full chart button
+        qtbot.mouseClick(chart_navigation.full_chart_button, Qt.LeftButton)
+
+    # Check that signal was emitted with correct values
+    assert spy.args[0] == 0  # row position should be 0
+    assert spy.args[1] == 0  # col position should be 0
+
+    # Zoom should be set to full chart size (or limit of 100 for large charts)
+    expected_row_zoom = min(chart_navigation.chart_rows, 100)
+    expected_col_zoom = min(chart_navigation.chart_cols, 100)
+    assert spy.args[2] == expected_row_zoom
+    assert spy.args[3] == expected_col_zoom
