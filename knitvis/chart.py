@@ -154,15 +154,50 @@ class KnittingChart:
 
     @staticmethod
     def stitch_to_index(stitch):
-        """Converts a stitch symbol (e.g., 'K', 'P') to its index in STITCH_ORDER.
+        """Converts a stitch symbol (e.g., 'K', 'P') or a list of them to its index/indices in STITCH_ORDER.
 
-        :param stitch: String representing the stitch type.
-        :return: Integer index of the stitch in STITCH_ORDER, or -1 if not found.
+        :param stitch: String or list of strings representing the stitch type(s).
+        :return: Integer index or list of indices of the stitch(es) in STITCH_ORDER, or -1 if not found.
         """
-        try:
-            return KnittingChart.STITCH_ORDER.index(stitch)
-        except ValueError:
-            return -1  # Returns -1 if the stitch is not found
+        if isinstance(stitch, str):
+            try:
+                return KnittingChart.STITCH_ORDER.index(stitch)
+            except ValueError:
+                return -1  # Returns -1 if the stitch is not found
+        elif isinstance(stitch, list):
+            return [KnittingChart.STITCH_ORDER.index(s) if s in KnittingChart.STITCH_ORDER else -1 for s in stitch]
+        else:
+            raise TypeError("Input must be a string or a list of strings")
+
+    @staticmethod
+    def index_to_stitch(index):
+        """Converts a stitch index or list of indices to its symbol(s) (e.g., 0 -> 'K', 1 -> 'P').
+
+        :param index: Integer index or list of indices of the stitch in STITCH_ORDER.
+        :return: String representing the stitch type, or list of strings, or 'Unknown' if not found.
+        """
+        if isinstance(index, (int, np.integer)):
+            if 0 <= index < len(KnittingChart.STITCH_ORDER):
+                return KnittingChart.STITCH_ORDER[index]
+            return 'Unknown'
+        elif isinstance(index, list):
+            return [KnittingChart.STITCH_ORDER[i] if 0 <= i < len(KnittingChart.STITCH_ORDER) else 'Unknown' for i in index]
+        else:
+            raise TypeError("Input must be an integer or a list of integers")
+
+    @staticmethod
+    def index_to_symbol(index):
+        """Converts a stitch index or list of indices to its symbol(s) (e.g., 0 -> 'V', 1 -> '●').
+        :param index: Integer index or list of indices of the stitch in STITCH_ORDER.
+        :return: String representing the stitch symbol, or list of strings, or '?' if not found.
+        """
+        if isinstance(index, (int, np.integer)):
+            stitch = KnittingChart.index_to_stitch(index)
+            return KnittingChart.STITCH_SYMBOLS.get(stitch, '?')
+        elif isinstance(index, list):
+            return [KnittingChart.STITCH_SYMBOLS.get(KnittingChart.index_to_stitch(i), '?') for i in index]
+        else:
+            raise TypeError("Input must be an integer or a list of integers")
 
     def get_symbolic_pattern(self, column_range=None, row_range=None):
         """Returns the knitting pattern as an NxM NumPy array of stitch symbols."""
@@ -176,9 +211,7 @@ class KnittingChart:
         for i in range(row_range[0], row_range[1]):
             for j in range(column_range[0], column_range[1]):
                 stitch_idx = self.pattern[i, j]
-                if 0 <= stitch_idx < len(self.STITCH_ORDER):
-                    symbolic_pattern[i,
-                                     j] = self.STITCH_SYMBOLS[self.STITCH_ORDER[stitch_idx]]
+                symbolic_pattern[i, j] = self.index_to_symbol(stitch_idx)
 
         return symbolic_pattern
 
@@ -193,8 +226,7 @@ class KnittingChart:
         for i in range(row_range[0], row_range[1]):
             for j in range(column_range[0], column_range[1]):
                 stitch_idx = self.pattern[i, j]
-                if 0 <= stitch_idx < len(self.STITCH_ORDER):
-                    text_pattern[i, j] = self.STITCH_ORDER[stitch_idx]
+                text_pattern[i, j] = self.index_to_stitch(stitch_idx)
 
         return text_pattern
 
@@ -246,21 +278,17 @@ class KnittingChart:
             fig, ax = plt.subplots(figsize=(
                 abs(range_col[1]-range_col[0]) * 0.8, abs(range_row[1]-range_row[0]) * 0.8))
 
-        # stitches = self.get_sti
+        stitches_symbols = self.get_symbolic_pattern(
+            column_range=range_col, row_range=range_row)
+
+        stitches_colors = self.get_rgb_colors(
+            column_range=range_col, row_range=range_row)
 
         for i in range(range_row[0], range_row[1]):
             for j in range(range_col[0], range_col[1]):
                 # Map the pattern integer to a stitch symbol.
-                stitch_idx = self.pattern[i, j]
-                if stitch_idx < 0 or stitch_idx >= len(self.STITCH_ORDER):
-                    symbol = '?'
-                else:
-                    stitch_key = self.STITCH_ORDER[stitch_idx]
-                    symbol = self.STITCH_SYMBOLS.get(stitch_key, '?')
-
-                # Retrieve the cell color from the palette via its index.
-                color_index = self.color_indices[i, j]
-                rgb = self.color_palette.get_color_by_index(color_index)
+                symbol = stitches_symbols[i-range_row[0], j-range_col[0]]
+                rgb = stitches_colors[i-range_row[0], j-range_col[0]]
 
                 # Normalize RGB to 0-1 range for Matplotlib.
                 normalized_rgb = [c / 255 for c in rgb]
