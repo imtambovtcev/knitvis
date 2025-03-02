@@ -3,6 +3,7 @@ import json
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import Rectangle
 
 from .palette import KnittingColorPalette
 
@@ -123,34 +124,31 @@ class KnittingChart:
     DEFAULT_COLOR = np.array([128, 128, 128], dtype=int)
 
     def __init__(self, pattern, colors=None):
-        """
-        :param pattern: NumPy array (N, M) with integers for stitch types.
-        :param colors: Either None, a single RGB color (length-3), or a NumPy array (N, M, 3).
-        """
+        """Initialize with NumPy optimizations"""
         self.pattern = np.array(pattern, dtype=int)
         self.rows, self.cols = self.pattern.shape
 
-        # Process colors
+        # Process colors efficiently
         if colors is None:
-            default_color = np.array([128, 128, 128], dtype=int)
-            colors_array = np.tile(default_color, (self.rows, self.cols, 1))
+            colors_array = np.full(
+                (self.rows, self.cols, 3), self.DEFAULT_COLOR, dtype=int)
         else:
             colors = np.array(colors, dtype=int)
             if colors.ndim == 1 and colors.size == 3:
-                colors_array = np.tile(colors, (self.rows, self.cols, 1))
+                colors_array = np.broadcast_to(
+                    colors, (self.rows, self.cols, 3)).copy()
             else:
                 if colors.shape != (self.rows, self.cols, 3):
                     raise ValueError("Colors array must have shape (N, M, 3)")
                 colors_array = colors
 
-        # Extract unique colors and create a palette
+        # Extract unique colors and create a palette using NumPy operations
         flat_colors = colors_array.reshape(-1, 3)
         unique_colors, inverse = np.unique(
             flat_colors, axis=0, return_inverse=True)
         self.color_palette = KnittingColorPalette(
             [tuple(color) for color in unique_colors])
-        self.color_indices = np.array([self.color_palette.get_index_by_color(
-            c) for c in flat_colors]).reshape(self.rows, self.cols)
+        self.color_indices = inverse.reshape(self.rows, self.cols)
 
     @staticmethod
     def stitch_to_index(stitch):
@@ -200,35 +198,30 @@ class KnittingChart:
             raise TypeError("Input must be an integer or a list of integers")
 
     def get_symbolic_pattern(self, column_range=None, row_range=None):
-        """Returns the knitting pattern as an NxM NumPy array of stitch symbols."""
-
+        """Returns the knitting pattern as an NxM NumPy array of stitch symbols, optimized."""
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        symbolic_pattern = np.full(
-            self.pattern.shape, '?', dtype='<U2')  # Default to '?'
+        # Extract the pattern slice
+        pattern_slice = self.pattern[row_range[0]
+            :row_range[1], column_range[0]:column_range[1]]
 
-        for i in range(row_range[0], row_range[1]):
-            for j in range(column_range[0], column_range[1]):
-                stitch_idx = self.pattern[i, j]
-                symbolic_pattern[i, j] = self.index_to_symbol(stitch_idx)
-
-        return symbolic_pattern
+        # Use vectorized function to map stitch indices to symbols
+        vectorized_index_to_symbol = np.vectorize(self.index_to_symbol)
+        return vectorized_index_to_symbol(pattern_slice)
 
     def get_text_pattern(self, column_range=None, row_range=None):
-        """Returns the knitting pattern as an NxM NumPy array of stitch names."""
+        """Returns the knitting pattern as an NxM NumPy array of stitch names, optimized."""
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        # Default to 'Unknown'
-        text_pattern = np.full(self.pattern.shape, 'Unknown', dtype='<U10')
+        # Extract the pattern slice
+        pattern_slice = self.pattern[row_range[0]
+            :row_range[1], column_range[0]:column_range[1]]
 
-        for i in range(row_range[0], row_range[1]):
-            for j in range(column_range[0], column_range[1]):
-                stitch_idx = self.pattern[i, j]
-                text_pattern[i, j] = self.index_to_stitch(stitch_idx)
-
-        return text_pattern
+        # Use vectorized function to map stitch indices to names
+        vectorized_index_to_stitch = np.vectorize(self.index_to_stitch)
+        return vectorized_index_to_stitch(pattern_slice)
 
     def get_symbolic_colors(self, column_range=None, row_range=None):
         """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
@@ -246,69 +239,90 @@ class KnittingChart:
         return symbolic_colors
 
     def get_rgb_colors(self, column_range=None, row_range=None):
-        """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
+        """Returns color data with NumPy optimizations."""
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        rgb_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
+        # Extract the relevant slice of color indices
+        indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
 
-        for i in range(row_range[0], row_range[1]):
-            for j in range(column_range[0], column_range[1]):
-                color_index = self.color_indices[i, j]
-                rgb_colors[i, j] = self.color_palette.get_color_by_index(
-                    color_index)
+        # Create a lookup table from palette
+        color_lookup = np.array([self.color_palette.get_color_by_index(i)
+                                for i in range(self.color_palette.num_colors)])
 
-        return rgb_colors
+        # Use advanced indexing to map indices to RGB colors in one operation
+        return color_lookup[indices_slice]
+
+    # Alias for backward compatibility
+    get_symbolic_colors = get_rgb_colors
 
     def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold', chart_range: tuple[tuple[int, int] | None, tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
-        """Visualizes the chart as a grid with stitch symbols and cell colors.
-
-        Returns the Matplotlib figure.
-        """
-
+        """Optimized chart display using Matplotlib collections."""
+        # Extract ranges
         range_row = (
             0, self.rows) if chart_range is None or chart_range[0] is None else chart_range[0]
         range_col = (
             0, self.cols) if chart_range is None or chart_range[1] is None else chart_range[1]
 
-        print(f'range_row: {range_row}, range_col: {range_col}')
+        rows_to_draw = range_row[1] - range_row[0]
+        cols_to_draw = range_col[1] - range_col[0]
 
         if fig is None or ax is None:
-            fig, ax = plt.subplots(figsize=(
-                abs(range_col[1]-range_col[0]) * 0.8, abs(range_row[1]-range_row[0]) * 0.8))
+            fig, ax = plt.subplots(
+                figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
 
-        stitches_symbols = self.get_symbolic_pattern(
-            column_range=range_col, row_range=range_row)
+        # Get symbols and colors for the specified range
+        symbols = self.get_symbolic_pattern(range_col, range_row)
+        colors = self.get_rgb_colors(range_col, range_row)
 
-        stitches_colors = self.get_rgb_colors(
-            column_range=range_col, row_range=range_row)
+        # Create arrays for cell positions and colors
+        positions = []
+        normalized_colors = []
+        symbol_positions = []
+        symbol_texts = []
+        symbol_colors = []
 
-        for i in range(range_row[0], range_row[1]):
-            for j in range(range_col[0], range_col[1]):
-                # Map the pattern integer to a stitch symbol.
-                symbol = stitches_symbols[i-range_row[0], j-range_col[0]]
-                rgb = stitches_colors[i-range_row[0], j-range_col[0]]
+        # Process in bulk for rectangles
+        row_indices, col_indices = np.meshgrid(
+            np.arange(range_row[0], range_row[1]),
+            np.arange(range_col[0], range_col[1]),
+            indexing='ij'
+        )
 
-                # Normalize RGB to 0-1 range for Matplotlib.
-                normalized_rgb = [c / 255 for c in rgb]
+        # Calculate positions for Rectangle patches
+        positions = np.column_stack(
+            (col_indices.ravel() + 0.5, row_indices.ravel() + 0.5))
 
-                # Calculate relative luminance to determine text color
-                luminance = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
-                text_color = "black" if luminance > 128 else "white"
+        # Normalize colors
+        normalized_colors = colors.reshape(-1, 3) / 255.0
 
-                # Draw the cell rectangle.
-                ax.add_patch(plt.Rectangle((j+0.5, i+0.5), 1, 1,
-                                           color=normalized_rgb, edgecolor='black'))
+        # Text content and positions
+        symbol_positions = np.column_stack(
+            (col_indices.ravel() + 1, row_indices.ravel() + 1))
+        symbol_texts = symbols.ravel()
 
-                # Draw the stitch symbol with appropriate text color.
-                if isinstance(fontsize, (int, float)) and fontsize > 0:
-                    ax.text(j+1, i+1, symbol,
-                            ha='center', va='center', fontsize=fontsize, fontweight=fontweight, color=text_color)
+        # Calculate text colors based on cell color luminance
+        luminance = 0.2126 * colors[..., 0] + 0.7152 * \
+            colors[..., 1] + 0.0722 * colors[..., 2]
+        symbol_colors = np.where(luminance.ravel() > 128, "black", "white")
 
+        rects = [Rectangle((x, y), 1, 1) for x, y in positions]
+        rect_collection = plt.matplotlib.collections.PatchCollection(
+            rects, facecolors=normalized_colors, edgecolors='black')
+        ax.add_collection(rect_collection)
+
+        # Add text for symbols
+        if isinstance(fontsize, (int, float)) and fontsize > 0:
+            for pos, symbol, color in zip(symbol_positions, symbol_texts, symbol_colors):
+                ax.text(pos[0], pos[1], symbol, ha='center', va='center',
+                        fontsize=fontsize, fontweight=fontweight, color=color)
+
+        # Set axis limits and ticks
         ax.set_xlim(0.5+range_col[0], 0.5+range_col[1])
         ax.set_ylim(0.5+range_row[1], 0.5+range_row[0])
 
+        # Handle axis ticks
         if x_axis_ticks_every_n > 0:
             ax.set_xticks(
                 np.arange(range_col[0]+1, range_col[1]+1, x_axis_ticks_every_n))
@@ -342,111 +356,104 @@ class KnittingChart:
         return fig
 
     def render_fabric(self, figsize=None, ratio=0.7, padding=0.01, show_outlines=False, ax=None):
-        """
-        Renders a knitting chart as a fabric with V-shaped stitches.
-
-        Parameters:
-        -----------
-        figsize : tuple, optional
-            Figure dimensions (width, height) in inches
-        ratio : float
-            Vertical positioning ratio between rows (default=0.7)
-        padding : float
-            Padding between stitches (default=0.01)
-        show_outlines : bool
-            Whether to show black outlines on stitches (default=False)
-        ax : matplotlib.axes.Axes, optional
-            An existing axes to draw on. If None, a new figure and axes will be created.
-
-        Returns:
-        --------
-        matplotlib.figure.Figure
-            The rendered fabric figure
-        """
+        """Render fabric with optimized NumPy/matplotlib operations."""
         y_padding = 2*padding
         x_padding = padding
         thickness = 1.0
         stitch_height = 2.0
 
-        # Check if pattern contains only knit stitches
-        non_knit_indices = np.where(self.pattern != 0)
-        if len(non_knit_indices[0]) > 0:
+        # Check for non-knit stitches using NumPy
+        if np.any(self.pattern != 0):
+            non_knit_indices = np.where(self.pattern != 0)
             row, col = non_knit_indices[0][0], non_knit_indices[1][0]
             stitch_name = self.STITCH_ORDER[self.pattern[row, col]]
             raise NotImplementedError(
                 f"Rendering for stitch type '{stitch_name}' is not yet implemented. "
                 f"Only knit stitches ('K') are currently supported.")
 
-        # Calculate figure dimensions
-        rows, cols = self.rows, self.cols
-
-        # Create figure and axes if not provided
+        # Create figure and axes if needed
         if ax is None:
-            # Calculate figsize based on chart dimensions if not provided
             if figsize is None:
-                # Use golden ratio for default aspect ratio
-                width = cols
-                height = rows + stitch_height
+                width = self.cols
+                height = self.rows + stitch_height
                 aspect_ratio = width / height
                 figsize = (8, 8 / aspect_ratio)
-
             fig, ax = plt.subplots(figsize=figsize)
         else:
-            # Use the provided axes
             fig = ax.figure
 
         # Set outline properties
         edgecolor = 'black' if show_outlines else 'none'
         linewidth = 0.5 if show_outlines else 0
 
-        # Render stitches from bottom to top
+        # Create mesh grids for vectorized operations
+        rows, cols = self.rows, self.cols
+        row_indices, col_indices = np.meshgrid(
+            np.arange(rows),
+            np.arange(cols),
+            indexing='ij'
+        )
+
+        # Get color lookup table from palette
+        color_lookup = np.array([self.color_palette.get_color_by_index(i)
+                                for i in range(self.color_palette.num_colors)])
+
+        # Get all colors in one operation
+        all_colors = color_lookup[self.color_indices]
+
+        # Convert to normalized colors
+        normalized_colors = all_colors.reshape(-1, 3) / 255.0
+
+        # Create left and right leg collections
+        left_legs = []
+        right_legs = []
+        stitch_colors = []
+
+        # Generate vertices for all stitches
         for i in range(rows):
-            actual_row = rows - 1 - i  # Convert to actual row in the chart
+            actual_row = rows - 1 - i
             y_offset = i
 
             for j in range(cols):
-                # Get stitch color
-                color_index = self.color_indices[actual_row, j]
-                rgb = self.color_palette.get_color_by_index(color_index)
-                normalized_rgb = [c / 255 for c in rgb]
+                # Add color for this stitch
+                stitch_colors.append(normalized_colors[actual_row * cols + j])
 
-                # Stitch coordinates (in grid units)
-                # Left leg of stitch
+                # Stitch legs
                 left_leg = [
-                    # Bottom right corner
                     [j + 0.5 - x_padding, y_offset + y_padding],
-                    # Bottom right corner + thinness
                     [j + 0.5 - x_padding, y_offset + thickness - y_padding],
-                    [j + x_padding, y_offset + stitch_height -
-                        y_padding],  # Top left corner
-                    # Top left corner - thinness
-                    [j + x_padding, y_offset + stitch_height - thickness + y_padding],
+                    [j + x_padding, y_offset + stitch_height - y_padding],
+                    [j + x_padding, y_offset + stitch_height - thickness + y_padding]
                 ]
+                left_legs.append(left_leg)
 
-                # Right leg of stitch
                 right_leg = [
                     [j + 0.5 + x_padding, y_offset + y_padding],
                     [j + 0.5 + x_padding, y_offset + thickness - y_padding],
                     [j + 1 - x_padding, y_offset + stitch_height - y_padding],
                     [j + 1 - x_padding, y_offset +
-                        stitch_height - thickness + y_padding],
+                        stitch_height - thickness + y_padding]
                 ]
+                right_legs.append(right_leg)
 
-                # Render the stitch legs
-                left_patch = patches.Polygon(left_leg, closed=True, facecolor=normalized_rgb,
-                                             edgecolor=edgecolor, linewidth=linewidth,
-                                             zorder=i*2)
-                right_patch = patches.Polygon(right_leg, closed=True, facecolor=normalized_rgb,
-                                              edgecolor=edgecolor, linewidth=linewidth,
-                                              zorder=i*2)
-                ax.add_patch(left_patch)
-                ax.add_patch(right_patch)
+        # Create and add collections
+        from matplotlib.collections import PolyCollection
+        left_collection = PolyCollection(
+            left_legs, facecolors=stitch_colors, edgecolors=edgecolor,
+            linewidth=linewidth, antialiased=True, zorder=2
+        )
+        ax.add_collection(left_collection)
 
-        # Set axis limits with a small margin
+        right_collection = PolyCollection(
+            right_legs, facecolors=stitch_colors, edgecolors=edgecolor,
+            linewidth=linewidth, antialiased=True, zorder=2
+        )
+        ax.add_collection(right_collection)
+
+        # Set axis limits and formatting
         margin = 0.05
         ax.set_xlim(-margin, cols + margin)
         ax.set_ylim(-margin, rows + stitch_height + margin)
-
         ax.set_aspect(ratio)
         ax.axis('off')
 
@@ -553,42 +560,26 @@ class KnittingChart:
         return True
 
     def optimize_color_palette(self):
-        """
-        Remove unused colors from the palette and update color indices accordingly.
-        This ensures the palette stays as small as possible.
-
-        Returns:
-        --------
-        bool
-            True if any colors were removed, False otherwise
-        """
-        # Find which color indices are actually used in the chart
+        """Remove unused colors from the palette using NumPy operations."""
+        # Find unique color indices that are actually used
         used_indices = np.unique(self.color_indices)
 
         # If all colors are used, no optimization needed
         if len(used_indices) == self.color_palette.num_colors:
             return False
 
-        # Create a list of the colors that are actually used
+        # Create mapping array from old indices to new indices
+        index_map = np.full(self.color_palette.num_colors, -1)
+        for new_idx, old_idx in enumerate(used_indices):
+            index_map[old_idx] = new_idx
+
+        # Apply mapping to all color indices in one operation
+        self.color_indices = index_map[self.color_indices]
+
+        # Create new palette with just the used colors
         used_colors = [self.color_palette.get_color_by_index(
             idx) for idx in used_indices]
-
-        # Map from current indices to new indices
-        index_mapping = {old_idx: new_idx for new_idx, old_idx in enumerate(
-            used_indices)}
-
-        # Create a new color palette with just the used colors
-        new_palette = KnittingColorPalette(used_colors)
-
-        # Update all indices in the chart using the mapping
-        new_indices = np.zeros_like(self.color_indices)
-        for i in range(self.rows):
-            for j in range(self.cols):
-                new_indices[i, j] = index_mapping[self.color_indices[i, j]]
-
-        # Update the chart's color indices and palette
-        self.color_indices = new_indices
-        self.color_palette = new_palette
+        self.color_palette = KnittingColorPalette(used_colors)
 
         return True
 
