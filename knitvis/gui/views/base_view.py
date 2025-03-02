@@ -14,6 +14,11 @@ class BaseChartView(QWidget):
     def __init__(self, chart=None):
         super().__init__()
         self.chart = chart
+
+        # Initialize caching for better performance
+        self._cache = {}
+        self._background = None
+
         # Use grid layout instead of vertical layout
         self.layout = QGridLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -81,3 +86,18 @@ class BaseChartView(QWidget):
         """Apply new settings to the view"""
         self.settings.update(settings)
         self.update_view()
+
+    def clear_cache(self):
+        """Clear the cached objects"""
+        self._cache.clear()
+        self._background = None
+
+    def cache_background(self):
+        """Cache the static background for blitting"""
+        if hasattr(self, 'canvas'):
+            self._background = self.canvas.copy_from_bbox(self.ax.bbox)
+
+    def restore_background(self):
+        """Restore the cached background for blitting"""
+        if self._background is not None:
+            self.canvas.restore_region(self._background)

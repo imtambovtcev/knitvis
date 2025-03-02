@@ -5,6 +5,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
                              QSlider, QWidget, QPushButton, QSpinBox, QGridLayout, QFrame, QSizePolicy)
 from PyQt5.QtCore import Qt
+from matplotlib.collections import PolyCollection
 
 from knitvis.gui.views.base_view import BaseChartView
 
@@ -101,6 +102,10 @@ class FabricView(BaseChartView):
         viewport_cols = end_col - start_col
 
         try:
+            # Check if chart contains non-knit stitches before rendering
+            self.check_for_non_knit_stitches(
+                start_row, start_col, viewport_rows, viewport_cols)
+
             # Set viewport-specific parameters for fabric rendering
             self.render_fabric_viewport(
                 start_row, start_col, viewport_rows, viewport_cols,
@@ -118,16 +123,8 @@ class FabricView(BaseChartView):
 
         self.canvas.draw()
 
-    def render_fabric_viewport(self, start_row, start_col, viewport_rows, viewport_cols,
-                               ratio, show_outlines, show_row_numbers, show_col_numbers):
-        """Render only the specified viewport of the fabric"""
-        # Derived parameters
-        y_padding = 0.02  # Padding for stitch rendering
-        x_padding = 0.01
-        thickness = ratio
-        stitch_height = thickness * 2
-
-        # Check if any non-knit stitches in the viewport
+    def check_for_non_knit_stitches(self, start_row, start_col, viewport_rows, viewport_cols):
+        """Check if any non-knit stitches in the viewport and raise an error if found"""
         for i in range(start_row, start_row + viewport_rows):
             for j in range(start_col, start_col + viewport_cols):
                 if self.chart.pattern[i, j] != 0:  # Not knit stitch
@@ -136,80 +133,72 @@ class FabricView(BaseChartView):
                         f"Rendering for stitch type '{stitch_type}' is not yet implemented. "
                         f"Only knit stitches ('K') are currently supported.")
 
-        # Set outline properties
-        edgecolor = 'black' if show_outlines else 'none'
-        linewidth = 0.5 if show_outlines else 0
+    def render_fabric_viewport(self, start_row, start_col, viewport_rows, viewport_cols,
+                               ratio, show_outlines, show_row_numbers, show_col_numbers):
+        """Optimized fabric rendering using polygon collections"""
+        # Calculate parameters
+        y_padding = 0.02
+        x_padding = 0.01
+        thickness = ratio
+        stitch_height = thickness * 2
 
-        # Render stitches from bottom to top
+        # Pre-calculate all vertices and colors for left and right legs
+        left_verts = []
+        right_verts = []
+        colors = []
+
+        # Create vertices for all stitches at once
         for i in range(viewport_rows):
-            actual_row = start_row + viewport_rows - 1 - \
-                i  # Convert to actual row in the chart
+            actual_row = start_row + viewport_rows - 1 - i
             y_offset = i * ratio
 
             for j in range(viewport_cols):
                 actual_col = start_col + j
 
-                # Get stitch color
+                # Get color
                 color_index = self.chart.color_indices[actual_row, actual_col]
                 rgb = self.chart.color_palette.get_color_by_index(color_index)
-                normalized_rgb = [c / 255 for c in rgb]
+                colors.append([c/255 for c in rgb])
 
-                # Stitch coordinates (in grid units) - adjust for viewport
-                # Left leg of stitch
-                left_leg = [
-                    # Bottom right corner
+                # Left leg vertices
+                left_verts.append([
                     [j + 0.5 - x_padding, y_offset + y_padding],
-                    # Bottom right corner + thinness
                     [j + 0.5 - x_padding, y_offset + thickness - y_padding],
-                    [j + x_padding, y_offset + stitch_height -
-                        y_padding],  # Top left corner
-                    # Top left corner - thinness
-                    [j + x_padding, y_offset + stitch_height - thickness + y_padding],
-                ]
+                    [j + x_padding, y_offset + stitch_height - y_padding],
+                    [j + x_padding, y_offset + stitch_height - thickness + y_padding]
+                ])
 
-                # Right leg of stitch
-                right_leg = [
+                # Right leg vertices
+                right_verts.append([
                     [j + 0.5 + x_padding, y_offset + y_padding],
                     [j + 0.5 + x_padding, y_offset + thickness - y_padding],
                     [j + 1 - x_padding, y_offset + stitch_height - y_padding],
                     [j + 1 - x_padding, y_offset +
-                        stitch_height - thickness + y_padding],
-                ]
+                        stitch_height - thickness + y_padding]
+                ])
 
-                # Render the stitch legs
-                left_patch = patches.Polygon(left_leg, closed=True, facecolor=normalized_rgb,
-                                             edgecolor=edgecolor, linewidth=linewidth,
-                                             zorder=i*2)
-                right_patch = patches.Polygon(right_leg, closed=True, facecolor=normalized_rgb,
-                                              edgecolor=edgecolor, linewidth=linewidth,
-                                              zorder=i*2)
-                self.ax.add_patch(left_patch)
-                self.ax.add_patch(right_patch)
+        # Create polygon collections for efficient rendering
+        edge_color = 'black' if show_outlines else None
+        line_width = 0.5 if show_outlines else 0
 
-        # Set axis limits with a small margin
-        margin = 0.05
-        self.ax.set_xlim(-margin, viewport_cols + margin)
-        self.ax.set_ylim(-margin, viewport_rows *
-                         ratio + stitch_height + margin)
+        left_collection = PolyCollection(
+            left_verts, facecolors=colors, edgecolors=edge_color,
+            linewidth=line_width, antialiased=True)
+        right_collection = PolyCollection(
+            right_verts, facecolors=colors, edgecolors=edge_color,
+            linewidth=line_width, antialiased=True)
 
-        # Add row and column numbers if enabled
-        if show_row_numbers:
-            for i in range(viewport_rows):
-                # Row number on the left edge
-                actual_row = start_row + i
-                y_pos = viewport_rows * ratio - i * ratio
-                self.ax.text(-0.5, y_pos, str(actual_row + 1),
-                             ha='right', va='center', fontsize=8)
+        # Add collections to axes
+        self.ax.add_collection(left_collection)
+        self.ax.add_collection(right_collection)
 
-        if show_col_numbers:
-            for j in range(viewport_cols):
-                # Column number along the top edge
-                actual_col = start_col + j
-                self.ax.text(j + 0.5, -0.5, str(actual_col + 1),
-                             ha='center', va='top', fontsize=8)
-
+        # Set limits and appearance
+        self.ax.set_xlim(-0.2, viewport_cols + 0.2)
+        self.ax.set_ylim(-0.2, viewport_rows * ratio + stitch_height + 0.2)
         self.ax.set_aspect('equal')
-        self.ax.axis('off')
+
+        # Cache the result
+        self.cache_background()
 
     def on_canvas_click(self, event):
         """Handle click events on the canvas and map to chart coordinates."""

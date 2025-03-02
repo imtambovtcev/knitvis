@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy
+from matplotlib.collections import PatchCollection, QuadMesh
+from matplotlib.text import Text
 
 from knitvis.gui.views.base_view import BaseChartView
 
@@ -45,12 +47,15 @@ class ChartView(BaseChartView):
         # Update navigation limits first
         self.update_navigation_limits()
 
-        # Clear the axis and figure
+        # Clear the axis and cache
         self.ax.clear()
+        self.clear_cache()
 
         # Get display settings
         show_row_numbers = self.settings.get('show_row_numbers', True)
         show_col_numbers = self.settings.get('show_col_numbers', True)
+        cell_border = self.settings.get('cell_border', True)
+        symbol_size = self.settings.get('symbol_size', 12)
 
         # Calculate margins based on whether numbers are shown
         left_margin = 0.05 if not show_row_numbers else 0.1
@@ -68,58 +73,55 @@ class ChartView(BaseChartView):
             hspace=0
         )
 
-        # Get the viewport parameters from the navigation widget
+        # Get viewport parameters
         start_row, start_col, row_zoom, col_zoom = self.get_viewport_parameters()
 
-        # Calculate end positions, ensuring we don't go beyond chart boundaries
-        rows, cols = self.chart.rows, self.chart.cols
-        end_row = min(start_row + row_zoom, rows)
-        end_col = min(start_col + col_zoom, cols)
+        # Calculate viewport dimensions
+        viewport_rows = min(row_zoom, self.chart.rows - start_row)
+        viewport_cols = min(col_zoom, self.chart.cols - start_col)
 
-        # Calculate actual viewport dimensions
-        viewport_rows = end_row - start_row
-        viewport_cols = end_col - start_col
+        # Draw cells and symbols efficiently
+        rects = []
+        texts = []
 
-        # Get display settings
-        show_row_numbers = self.settings.get('show_row_numbers', True)
-        show_col_numbers = self.settings.get('show_col_numbers', True)
-        cell_border = self.settings.get('cell_border', True)
-        symbol_size = self.settings.get('symbol_size', 12)
+        # Create patches for each cell
+        for i in range(viewport_rows):
+            for j in range(viewport_cols):
+                chart_i = start_row + i
+                chart_j = start_col + j
 
-        # Draw the visible portion of the chart
-        for i in range(start_row, end_row):
-            for j in range(start_col, end_col):
-                # Get stitch info using get_stitch method
-                stitch_type, color_rgb = self.chart.get_stitch(i, j)
+                stitch_type, color_rgb = self.chart.get_stitch(
+                    chart_i, chart_j)
 
-                # Get the symbol for this stitch type
+                # Create rectangle for the cell
+                rect = patches.Rectangle(
+                    (j, viewport_rows - 1 - i), 1, 1,
+                    facecolor=[c/255 for c in color_rgb],
+                    edgecolor='black' if cell_border else 'none',
+                    linewidth=0.5 if cell_border else 0
+                )
+                rects.append(rect)
+
+                # Determine symbol and color
                 symbol = self.chart.STITCH_SYMBOLS.get(stitch_type, '?')
-
-                # Normalize RGB to 0-1 range for Matplotlib
-                normalized_rgb = [c / 255 for c in color_rgb]
-
-                # Calculate relative luminance to determine text color
                 luminance = 0.2126 * \
                     color_rgb[0] + 0.7152 * \
                     color_rgb[1] + 0.0722 * color_rgb[2]
-                text_color = "black" if luminance > 128 else "white"
+                text_color = "white" if luminance < 128 else "black"
 
-                # Convert chart coordinates to viewport coordinates
-                viewport_i = i - start_row
-                viewport_j = j - start_col
+                # Add text for symbol
+                text = self.ax.text(
+                    j + 0.5, viewport_rows - 1 - i + 0.5, symbol,
+                    ha='center', va='center',
+                    fontsize=symbol_size,
+                    fontweight='bold',
+                    color=text_color
+                )
+                texts.append(text)
 
-                # Draw the cell rectangle (invert the y-axis for display)
-                # Fix: Set facecolor and edgecolor separately instead of using color
-                edgecolor = 'black' if cell_border else 'none'
-                rect = patches.Rectangle((viewport_j, viewport_rows - 1 - viewport_i),
-                                         1, 1, facecolor=normalized_rgb, edgecolor=edgecolor,
-                                         linewidth=0.5 if cell_border else 0)
-                self.ax.add_patch(rect)
-
-                # Draw the stitch symbol with appropriate text color
-                self.ax.text(viewport_j + 0.5, viewport_rows - 1 - viewport_i + 0.5, symbol,
-                             ha='center', va='center', fontsize=symbol_size, fontweight='bold',
-                             color=text_color)
+        # Add cell patches efficiently as a collection
+        cell_collection = PatchCollection(rects, match_original=True)
+        self.ax.add_collection(cell_collection)
 
         # Set axis limits and appearance
         self.ax.set_xlim(0, viewport_cols)
@@ -143,9 +145,10 @@ class ChartView(BaseChartView):
                 self.ax.text(j + 0.5, viewport_rows + 0.2, str(actual_col + 1),
                              ha='center', va='center', fontsize=8)
 
-        # No title needed - viewport info is displayed in navigation widget
+        # Cache the static background
+        self.cache_background()
 
-        # Redraw the canvas
+        # Draw everything
         self.canvas.draw()
 
     def on_canvas_click(self, event):
