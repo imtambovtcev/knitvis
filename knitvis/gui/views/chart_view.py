@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy
 
 from knitvis.gui.views.base_view import BaseChartView
 
@@ -12,13 +12,19 @@ class ChartView(BaseChartView):
 
     def init_ui(self):
         # Initialize additional view-specific settings
-        # Use setdefault to avoid errors if settings is None
         self.settings.setdefault('cell_border', True)
         self.settings.setdefault('symbol_size', 12)
-        
-        # Chart display
-        self.figure, self.ax = plt.subplots()
+
+        # Create figure with tight layout
+        self.figure = plt.figure(constrained_layout=True)
+        self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
+
+        # Allow figure to expand with window
+        self.canvas.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding
+        )
 
         # Place the canvas inside the content area of the navigation widget
         self.navigation.layout().itemAtPosition(0, 0).widget().setLayout(QVBoxLayout())
@@ -39,8 +45,28 @@ class ChartView(BaseChartView):
         # Update navigation limits first
         self.update_navigation_limits()
 
-        # Clear the axis
+        # Clear the axis and figure
         self.ax.clear()
+
+        # Get display settings
+        show_row_numbers = self.settings.get('show_row_numbers', True)
+        show_col_numbers = self.settings.get('show_col_numbers', True)
+
+        # Calculate margins based on whether numbers are shown
+        left_margin = 0.05 if not show_row_numbers else 0.1
+        bottom_margin = 0.05 if not show_col_numbers else 0.1
+        right_margin = 0.02
+        top_margin = 0.02
+
+        # Adjust figure margins
+        self.figure.subplots_adjust(
+            left=left_margin,
+            right=1.0 - right_margin,
+            bottom=bottom_margin,
+            top=1.0 - top_margin,
+            wspace=0,
+            hspace=0
+        )
 
         # Get the viewport parameters from the navigation widget
         start_row, start_col, row_zoom, col_zoom = self.get_viewport_parameters()

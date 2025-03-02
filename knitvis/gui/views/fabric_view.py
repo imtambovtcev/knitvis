@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QLabel, QCheckBox,
-                             QSlider, QWidget, QPushButton, QSpinBox, QGridLayout, QFrame)
+                             QSlider, QWidget, QPushButton, QSpinBox, QGridLayout, QFrame, QSizePolicy)
 from PyQt5.QtCore import Qt
 
 from knitvis.gui.views.base_view import BaseChartView
@@ -13,23 +13,29 @@ class FabricView(BaseChartView):
     """Knitting fabric visualization showing V-shaped stitches with navigation"""
 
     def init_ui(self):
-        # Initialize additional view-specific settings 
-        # Use setdefault to avoid errors if settings is None
+        # Initialize settings
         self.settings.setdefault('show_outlines', False)
         self.settings.setdefault('row_spacing', 0.7)
-        
-        # Create a container for the chart and its controls
+
+        # Create figure with tight layout
+        self.figure = plt.figure(constrained_layout=True)
+        self.ax = self.figure.add_subplot(111)
+        self.canvas = FigureCanvas(self.figure)
+
+        # Allow figure to expand with window
+        self.canvas.setSizePolicy(
+            QSizePolicy.Expanding,
+            QSizePolicy.Expanding
+        )
+
+        # Create container with minimal margins
         container = QFrame()
         container_layout = QVBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout.setSpacing(0)
+        container_layout.addWidget(self.canvas)
 
-        # Create figure for rendering
-        self.figure, self.ax = plt.subplots()
-        self.canvas = FigureCanvas(self.figure)
-        # Give canvas stretch factor
-        container_layout.addWidget(self.canvas, 1)
-
-        # Place the container inside the navigation widget's content area
+        # Place in navigation widget
         self.navigation.layout().itemAtPosition(0, 0).widget().setLayout(QVBoxLayout())
         self.navigation.layout().itemAtPosition(
             0, 0).widget().layout().addWidget(container)
@@ -51,6 +57,26 @@ class FabricView(BaseChartView):
         # Clear the figure
         self.figure.clear()
         self.ax = self.figure.add_subplot(111)
+
+        # Get display settings
+        show_row_numbers = self.settings.get('show_row_numbers', True)
+        show_col_numbers = self.settings.get('show_col_numbers', True)
+
+        # Calculate margins based on whether numbers are shown
+        left_margin = 0.05 if not show_row_numbers else 0.1
+        bottom_margin = 0.05 if not show_col_numbers else 0.1
+        right_margin = 0.02
+        top_margin = 0.02
+
+        # Adjust figure margins
+        self.figure.subplots_adjust(
+            left=left_margin,
+            right=1.0 - right_margin,
+            bottom=bottom_margin,
+            top=1.0 - top_margin,
+            wspace=0,
+            hspace=0
+        )
 
         # Get parameters from settings
         show_outlines = self.settings.get('show_outlines', False)
