@@ -156,7 +156,7 @@ class ColorPaletteDialog(QDialog):
         palette = self.chart.color_palette
 
         for i in range(palette.num_colors):
-            color_rgb = palette.get_color_by_index(i)
+            color_rgb = palette.get_color_rgb_by_index(i)
             color_name = palette.full_names[i]
             color_tag = palette.short_tags[i]
 
@@ -193,7 +193,7 @@ class ColorPaletteDialog(QDialog):
 
         # Draw color swatches
         for i in range(palette.num_colors):
-            color = palette.get_color_by_index(i)
+            color = palette.get_color_rgb_by_index(i)
             normalized_rgb = [c / 255 for c in color]
             ax.add_patch(plt.Rectangle(
                 (i, 0), 1, 1, color=normalized_rgb, edgecolor='black'))

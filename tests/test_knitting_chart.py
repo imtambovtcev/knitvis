@@ -43,7 +43,7 @@ def test_get_color_from_palette(sample_chart):
     for i in range(sample_chart.rows):
         for j in range(sample_chart.cols):
             color_index = sample_chart.color_indices[i, j]
-            color_from_palette = sample_chart.color_palette.get_color_by_index(
+            color_from_palette = sample_chart.color_palette.get_color_rgb_by_index(
                 color_index)
             assert isinstance(color_from_palette, tuple)
             assert len(color_from_palette) == 3  # Ensure it's an RGB tuple
@@ -78,14 +78,14 @@ def test_custom_color_palette():
     for color in unique_colors:
         color_index = chart.color_palette.get_index_by_color(color)
         assert color_index is not None, f"Color {color} not found in palette"
-        assert chart.color_palette.get_color_by_index(color_index) == color
+        assert chart.color_palette.get_color_rgb_by_index(color_index) == color
 
     # Ensure the color index mapping is correct
     for i in range(chart.rows):
         for j in range(chart.cols):
             expected_color = tuple(colors[i, j])
             color_index = chart.color_indices[i, j]
-            assert chart.color_palette.get_color_by_index(
+            assert chart.color_palette.get_color_rgb_by_index(
                 color_index) == expected_color
 
 
@@ -115,17 +115,15 @@ def test_get_text_pattern(sample_chart):
     assert np.array_equal(text_pattern, expected_text)
 
 
-def test_get_symbolic_colors(sample_chart):
+def test_get_colors_tags(sample_chart):
     """Tests if the symbolic color representation matches the original colors."""
-    expected_colors = np.array([
-        [[255, 255, 255], [200, 200, 200], [255, 0, 0], [0, 255, 0]],
-        [[0, 0, 255], [128, 128, 128], [255, 182, 193], [255, 165, 0]],
-        [[128, 0, 128], [165, 42, 42], [255, 255, 0], [0, 128, 0]]
-    ])  # Expected NxMx3 color array
+    expected_colors = np.array([['W', 'Pi', 'R', 'Gr2'],
+                                ['Bl', 'Gy', 'Pi2', 'O'],
+                                ['P', 'Br', 'Y', 'Gr']])  # Expected NxMx3 color array
 
-    symbolic_colors = sample_chart.get_symbolic_colors()
+    symbolic_colors = sample_chart.get_colors_tags()
 
-    assert symbolic_colors.shape == sample_chart.color_indices.shape + (3,)
+    assert symbolic_colors.shape == sample_chart.color_indices.shape
     assert np.array_equal(symbolic_colors, expected_colors)
 
 
@@ -141,8 +139,8 @@ def test_get_chart_slice(sample_chart):
                           sample_chart.pattern[:2, 1:])  # Pattern check
 
     # Ensure color representations match
-    expected_colors = sample_chart.get_symbolic_colors()[:2, 1:]
-    sliced_colors = sliced_chart.get_symbolic_colors()
+    expected_colors = sample_chart.get_colors_rgb()[:2, 1:]
+    sliced_colors = sliced_chart.get_colors_rgb()
     assert np.array_equal(sliced_colors, expected_colors)
 
 
@@ -162,7 +160,7 @@ def test_set_chart_slice(sample_chart):
     assert np.array_equal(sample_chart.pattern[:2, :2], new_pattern)
 
     # Ensure color values match after transformation
-    updated_colors = sample_chart.get_symbolic_colors()[:2, :2]
+    updated_colors = sample_chart.get_colors_rgb()[:2, :2]
     assert np.array_equal(updated_colors, new_colors)
 
 
@@ -222,8 +220,8 @@ def test_from_dict(sample_chart):
 
     # Check colors match
     np.testing.assert_array_equal(
-        reconstructed_chart.get_symbolic_colors(),
-        sample_chart.get_symbolic_colors()
+        reconstructed_chart.get_colors_tags(),
+        sample_chart.get_colors_tags()
     )
 
 
@@ -246,8 +244,8 @@ def test_json_roundtrip(sample_chart, tmp_path):
 
     # Verify colors match
     np.testing.assert_array_equal(
-        loaded_chart.get_symbolic_colors(),
-        sample_chart.get_symbolic_colors()
+        loaded_chart.get_colors_tags(),
+        sample_chart.get_colors_tags()
     )
 
 
@@ -366,7 +364,7 @@ def test_optimize_color_palette():
 
     # Verify that only the used color remains
     assert chart.color_palette.num_colors == 1
-    assert chart.color_palette.get_color_by_index(0) == (255, 0, 0)
+    assert chart.color_palette.get_color_rgb_by_index(0) == (255, 0, 0)
 
 
 def test_optimize_color_palette_preserves_used_colors():
@@ -397,7 +395,7 @@ def test_optimize_color_palette_preserves_used_colors():
 
     # Should now have only 1 color in palette
     assert chart.color_palette.num_colors == 1
-    assert chart.color_palette.get_color_by_index(0) == (255, 0, 0)
+    assert chart.color_palette.get_color_rgb_by_index(0) == (255, 0, 0)
 
     # All indices should still be 0
     assert np.all(chart.color_indices == 0)

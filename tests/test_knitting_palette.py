@@ -163,7 +163,7 @@ def test_add_color(sample_palette):
     # Verify color was added
     assert sample_palette.num_colors == initial_count + 1
     assert index == initial_count  # Index should be the previous count
-    assert sample_palette.get_color_by_index(index) == new_color
+    assert sample_palette.get_color_rgb_by_index(index) == new_color
 
     # Verify naming logic
     # Should be named as a shade of purple
@@ -183,7 +183,7 @@ def test_add_existing_color(sample_palette):
     # Verify no new color was added
     assert sample_palette.num_colors == initial_count
     assert index < initial_count  # Should return existing index
-    assert sample_palette.get_color_by_index(index) == existing_color
+    assert sample_palette.get_color_rgb_by_index(index) == existing_color
 
 
 def test_color_naming_logic(sample_palette):

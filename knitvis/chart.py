@@ -3,6 +3,7 @@ import json
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.collections import PolyCollection
 from matplotlib.patches import Rectangle
 
 from .palette import KnittingColorPalette
@@ -162,7 +163,7 @@ class KnittingChart:
                 return KnittingChart.STITCH_ORDER.index(stitch)
             except ValueError:
                 return -1  # Returns -1 if the stitch is not found
-        elif isinstance(stitch, list):
+        elif isinstance(stitch, (list, np.ndarray)):
             return [KnittingChart.STITCH_ORDER.index(s) if s in KnittingChart.STITCH_ORDER else -1 for s in stitch]
         else:
             raise TypeError("Input must be a string or a list of strings")
@@ -178,7 +179,7 @@ class KnittingChart:
             if 0 <= index < len(KnittingChart.STITCH_ORDER):
                 return KnittingChart.STITCH_ORDER[index]
             return 'Unknown'
-        elif isinstance(index, list):
+        elif isinstance(index, (list, np.ndarray)):
             return [KnittingChart.STITCH_ORDER[i] if 0 <= i < len(KnittingChart.STITCH_ORDER) else 'Unknown' for i in index]
         else:
             raise TypeError("Input must be an integer or a list of integers")
@@ -192,7 +193,7 @@ class KnittingChart:
         if isinstance(index, (int, np.integer)):
             stitch = KnittingChart.index_to_stitch(index)
             return KnittingChart.STITCH_SYMBOLS.get(stitch, '?')
-        elif isinstance(index, list):
+        elif isinstance(index, (list, np.ndarray)):
             return [KnittingChart.STITCH_SYMBOLS.get(KnittingChart.index_to_stitch(i), '?') for i in index]
         else:
             raise TypeError("Input must be an integer or a list of integers")
@@ -223,38 +224,39 @@ class KnittingChart:
         vectorized_index_to_stitch = np.vectorize(self.index_to_stitch)
         return vectorized_index_to_stitch(pattern_slice)
 
-    def get_symbolic_colors(self, column_range=None, row_range=None):
-        """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
+    def get_colors_tags(self, column_range=None, row_range=None):
+        """Returns the knitting chart colors as an NxM NumPy array of color tags."""
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        symbolic_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
-
-        for i in range(row_range[0], row_range[1]):
-            for j in range(column_range[0], column_range[1]):
-                color_index = self.color_indices[i, j]
-                symbolic_colors[i, j] = self.color_palette.get_color_by_index(
-                    color_index)
-
-        return symbolic_colors
-
-    def get_rgb_colors(self, column_range=None, row_range=None):
-        """Returns color data with NumPy optimizations."""
-        column_range = column_range or (0, self.cols)
-        row_range = row_range or (0, self.rows)
+        color_tags = np.empty((self.rows, self.cols), dtype='<U4')
 
         # Extract the relevant slice of color indices
         indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
 
-        # Create a lookup table from palette
-        color_lookup = np.array([self.color_palette.get_color_by_index(i)
-                                for i in range(self.color_palette.num_colors)])
+        # Get the color tags for the sliced indices
+        color_tags[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
+            self.color_palette.get_color_tag_by_index(indices_slice.flatten())
+        ).reshape((row_range[1] - row_range[0], column_range[1] - column_range[0]))
 
-        # Use advanced indexing to map indices to RGB colors in one operation
-        return color_lookup[indices_slice]
+        return color_tags
 
-    # Alias for backward compatibility
-    get_symbolic_colors = get_rgb_colors
+    def get_colors_rgb(self, column_range=None, row_range=None):
+        """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
+
+        rgb_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
+
+        # Extract the relevant slice of color indices
+        indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
+
+        # Get the RGB values for the sliced indices
+        rgb_colors[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
+            self.color_palette.get_color_rgb_by_index(indices_slice.flatten())
+        ).reshape((row_range[1] - row_range[0], column_range[1] - column_range[0], 3))
+
+        return rgb_colors
 
     def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold', chart_range: tuple[tuple[int, int] | None, tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
@@ -274,7 +276,7 @@ class KnittingChart:
 
         # Get symbols and colors for the specified range
         symbols = self.get_symbolic_pattern(range_col, range_row)
-        colors = self.get_rgb_colors(range_col, range_row)
+        colors = self.get_colors_rgb(range_col, range_row)
 
         # Create arrays for cell positions and colors
         positions = []
@@ -436,8 +438,6 @@ class KnittingChart:
                 ]
                 right_legs.append(right_leg)
 
-        # Create and add collections
-        from matplotlib.collections import PolyCollection
         left_collection = PolyCollection(
             left_legs, facecolors=stitch_colors, edgecolors=edgecolor,
             linewidth=linewidth, antialiased=True, zorder=2
@@ -483,7 +483,7 @@ class KnittingChart:
                 self.STITCH_ORDER) else 'Unknown'
 
             color_idx = self.color_indices[row, col]
-            color_rgb = self.color_palette.get_color_by_index(color_idx)
+            color_rgb = self.color_palette.get_color_rgb_by_index(color_idx)
 
             return stitch_type, color_rgb
         else:
@@ -577,7 +577,7 @@ class KnittingChart:
         self.color_indices = index_map[self.color_indices]
 
         # Create new palette with just the used colors
-        used_colors = [self.color_palette.get_color_by_index(
+        used_colors = [self.color_palette.get_color_rgb_by_index(
             idx) for idx in used_indices]
         self.color_palette = KnittingColorPalette(used_colors)
 
@@ -625,7 +625,7 @@ class KnittingChart:
             pattern_slice = self.pattern[key]
 
             # Convert color indices back to NxMx3 RGB values before slicing
-            symbolic_colors = self.get_symbolic_colors()
+            symbolic_colors = self.get_colors_rgb()
             color_slice = symbolic_colors[key]  # Apply the same slicing
 
             return KnittingChart(pattern_slice, colors=color_slice)
@@ -652,17 +652,16 @@ class KnittingChart:
             self.pattern[key] = value.pattern
 
             # Convert the inserted chart's color indices back to RGB for modification
-            symbolic_colors = self.get_symbolic_colors()
+            colors_array = self.get_colors_rgb()
             # Apply new colors
-            symbolic_colors[key] = value.get_symbolic_colors()
+            colors_array[key] = value.get_colors_rgb()
 
-            # Recreate KnittingChart with updated colors
-            updated_chart = KnittingChart(self.pattern, colors=symbolic_colors)
-
-            # Transfer data back to self
-            self.pattern = updated_chart.pattern
-            self.color_indices = updated_chart.color_indices
-            self.color_palette = updated_chart.color_palette
+            flat_colors = colors_array.reshape(-1, 3)
+            unique_colors, inverse = np.unique(
+                flat_colors, axis=0, return_inverse=True)
+            self.color_palette = KnittingColorPalette(
+                [tuple(color) for color in unique_colors])
+            self.color_indices = inverse.reshape(self.rows, self.cols)
 
         else:
             raise TypeError("Indexing must be a tuple of two slices/indices.")

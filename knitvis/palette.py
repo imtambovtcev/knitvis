@@ -71,11 +71,35 @@ class KnittingColorPalette:
         matches = np.where((self.assigned_colors == color).all(axis=1))[0]
         return int(matches[0]) if matches.size > 0 else None
 
-    def get_color_by_index(self, index):
-        """Returns the RGB value of a color given its assigned integer index."""
-        if 0 <= index < self.num_colors:
-            return tuple(self.assigned_colors[index].tolist())
-        return None  # Invalid index
+    def get_color_rgb_by_index(self, index):
+        """Returns the RGB value of a color given its assigned integer index or a list of indices."""
+        if isinstance(index, (int, np.integer)):
+            if 0 <= index < self.num_colors:
+                return tuple(self.assigned_colors[index].tolist())
+            return None
+        elif isinstance(index, (list, np.ndarray)):
+            return [tuple(self.assigned_colors[i].tolist()) for i in index if 0 <= i < self.num_colors]
+        return None
+
+    def get_color_name_by_index(self, index):
+        """Returns the full color name given an assigned integer index."""
+        if isinstance(index, (int, np.integer)):
+            if 0 <= index < self.num_colors:
+                return self.full_names[index]
+            return None
+        elif isinstance(index, (list, np.ndarray)):
+            return [self.full_names[i] for i in index if 0 <= i < self.num_colors]
+        return None
+
+    def get_color_tag_by_index(self, index):
+        """Returns the short tag given an assigned integer index."""
+        if isinstance(index, (int, np.integer)):
+            if 0 <= index < self.num_colors:
+                return self.short_tags[index]
+            return None
+        elif isinstance(index, (list, np.ndarray)):
+            return [self.short_tags[i] for i in index if 0 <= i < self.num_colors]
+        return None
 
     def get_color_by_name(self, name):
         """Returns the RGB value given a full color name (e.g., 'White1')."""

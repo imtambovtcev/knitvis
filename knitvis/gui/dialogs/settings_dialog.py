@@ -145,7 +145,7 @@ class SettingsDialog(QDialog):
 
         # Replace slider with numeric input for row spacing
         self.fabric_row_spacing = QDoubleSpinBox()
-        self.fabric_row_spacing.setRange(0.1, 1.0)
+        self.fabric_row_spacing.setRange(0.1, 5.0)
         self.fabric_row_spacing.setSingleStep(0.05)
         self.fabric_row_spacing.setDecimals(2)
         # Get direct value (not percentage)
