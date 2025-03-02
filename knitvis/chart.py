@@ -164,13 +164,17 @@ class KnittingChart:
         except ValueError:
             return -1  # Returns -1 if the stitch is not found
 
-    def get_symbolic_pattern(self):
+    def get_symbolic_pattern(self, column_range=None, row_range=None):
         """Returns the knitting pattern as an NxM NumPy array of stitch symbols."""
+
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
+
         symbolic_pattern = np.full(
             self.pattern.shape, '?', dtype='<U2')  # Default to '?'
 
-        for i in range(self.rows):
-            for j in range(self.cols):
+        for i in range(row_range[0], row_range[1]):
+            for j in range(column_range[0], column_range[1]):
                 stitch_idx = self.pattern[i, j]
                 if 0 <= stitch_idx < len(self.STITCH_ORDER):
                     symbolic_pattern[i,
@@ -178,40 +182,74 @@ class KnittingChart:
 
         return symbolic_pattern
 
-    def get_text_pattern(self):
+    def get_text_pattern(self, column_range=None, row_range=None):
         """Returns the knitting pattern as an NxM NumPy array of stitch names."""
-        text_pattern = np.full(self.pattern.shape, 'Unknown',
-                               dtype='<U10')  # Default to 'Unknown'
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
 
-        for i in range(self.rows):
-            for j in range(self.cols):
+        # Default to 'Unknown'
+        text_pattern = np.full(self.pattern.shape, 'Unknown', dtype='<U10')
+
+        for i in range(row_range[0], row_range[1]):
+            for j in range(column_range[0], column_range[1]):
                 stitch_idx = self.pattern[i, j]
                 if 0 <= stitch_idx < len(self.STITCH_ORDER):
                     text_pattern[i, j] = self.STITCH_ORDER[stitch_idx]
 
         return text_pattern
 
-    def get_symbolic_colors(self):
+    def get_symbolic_colors(self, column_range=None, row_range=None):
         """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
+
         symbolic_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
 
-        for i in range(self.rows):
-            for j in range(self.cols):
+        for i in range(row_range[0], row_range[1]):
+            for j in range(column_range[0], column_range[1]):
                 color_index = self.color_indices[i, j]
                 symbolic_colors[i, j] = self.color_palette.get_color_by_index(
                     color_index)
 
         return symbolic_colors
 
-    def display_chart(self):
+    def get_rgb_colors(self, column_range=None, row_range=None):
+        """Returns the knitting chart colors as an NxMx3 NumPy array (RGB format)."""
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
+
+        rgb_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
+
+        for i in range(row_range[0], row_range[1]):
+            for j in range(column_range[0], column_range[1]):
+                color_index = self.color_indices[i, j]
+                rgb_colors[i, j] = self.color_palette.get_color_by_index(
+                    color_index)
+
+        return rgb_colors
+
+    def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold', chart_range: tuple[tuple[int, int] | None, tuple[int, int] | None] | None = None,
+                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
         """Visualizes the chart as a grid with stitch symbols and cell colors.
 
         Returns the Matplotlib figure.
         """
-        fig, ax = plt.subplots(figsize=(self.cols * 0.8, self.rows * 0.8))
 
-        for i in range(self.rows):
-            for j in range(self.cols):
+        range_row = (
+            0, self.rows) if chart_range is None or chart_range[0] is None else chart_range[0]
+        range_col = (
+            0, self.cols) if chart_range is None or chart_range[1] is None else chart_range[1]
+
+        print(f'range_row: {range_row}, range_col: {range_col}')
+
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(figsize=(
+                abs(range_col[1]-range_col[0]) * 0.8, abs(range_row[1]-range_row[0]) * 0.8))
+
+        # stitches = self.get_sti
+
+        for i in range(range_row[0], range_row[1]):
+            for j in range(range_col[0], range_col[1]):
                 # Map the pattern integer to a stitch symbol.
                 stitch_idx = self.pattern[i, j]
                 if stitch_idx < 0 or stitch_idx >= len(self.STITCH_ORDER):
@@ -232,19 +270,46 @@ class KnittingChart:
                 text_color = "black" if luminance > 128 else "white"
 
                 # Draw the cell rectangle.
-                ax.add_patch(plt.Rectangle((j, self.rows - 1 - i), 1, 1,
+                ax.add_patch(plt.Rectangle((j+0.5, i+0.5), 1, 1,
                                            color=normalized_rgb, edgecolor='black'))
 
                 # Draw the stitch symbol with appropriate text color.
-                ax.text(j + 0.5, self.rows - 1 - i + 0.5, symbol,
-                        ha='center', va='center', fontsize=12, fontweight='bold',
-                        color=text_color)
+                if isinstance(fontsize, (int, float)) and fontsize > 0:
+                    ax.text(j+1, i+1, symbol,
+                            ha='center', va='center', fontsize=fontsize, fontweight=fontweight, color=text_color)
 
-        ax.set_xlim(0, self.cols)
-        ax.set_ylim(0, self.rows)
-        ax.set_xticks([])
-        ax.set_yticks([])
+        ax.set_xlim(0.5+range_col[0], 0.5+range_col[1])
+        ax.set_ylim(0.5+range_row[1], 0.5+range_row[0])
+
+        if x_axis_ticks_every_n > 0:
+            ax.set_xticks(
+                np.arange(range_col[0]+1, range_col[1]+1, x_axis_ticks_every_n))
+            if x_axis_ticks_numbers_every_n_tics > 0:
+                tick_labels = np.arange(
+                    range_col[0]+1, range_col[1]+1, x_axis_ticks_every_n)
+                tick_labels = tick_labels.astype(str)
+                tick_labels[np.where(tick_labels.astype(int) %
+                                     x_axis_ticks_numbers_every_n_tics != 0)] = ''
+                ax.set_xticklabels(tick_labels)
+        else:
+            ax.set_xticks([])
+
+        if y_axis_ticks_every_n > 0:
+            ax.set_yticks(
+                np.arange(range_row[0]+1, range_row[1]+1, y_axis_ticks_every_n))
+            if y_axis_ticks_numbers_every_n_ticks > 0:
+                tick_labels = np.arange(
+                    range_row[0]+1, range_row[1]+1, y_axis_ticks_every_n)
+                tick_labels = tick_labels.astype(str)
+                tick_labels[np.where(tick_labels.astype(int) %
+                                     y_axis_ticks_numbers_every_n_ticks != 0)] = ''
+                ax.set_yticklabels(tick_labels)
+        else:
+            ax.set_yticks([])
+
         ax.set_frame_on(False)
+        if ratio:
+            ax.set_aspect(ratio)
 
         return fig
 
@@ -272,8 +337,8 @@ class KnittingChart:
         """
         y_padding = 2*padding
         x_padding = padding
-        thickness = ratio
-        stitch_height = thickness * 2
+        thickness = 1.0
+        stitch_height = 2.0
 
         # Check if pattern contains only knit stitches
         non_knit_indices = np.where(self.pattern != 0)
@@ -293,7 +358,7 @@ class KnittingChart:
             if figsize is None:
                 # Use golden ratio for default aspect ratio
                 width = cols
-                height = rows * ratio + stitch_height
+                height = rows + stitch_height
                 aspect_ratio = width / height
                 figsize = (8, 8 / aspect_ratio)
 
@@ -309,7 +374,7 @@ class KnittingChart:
         # Render stitches from bottom to top
         for i in range(rows):
             actual_row = rows - 1 - i  # Convert to actual row in the chart
-            y_offset = i * ratio
+            y_offset = i
 
             for j in range(cols):
                 # Get stitch color
@@ -352,9 +417,9 @@ class KnittingChart:
         # Set axis limits with a small margin
         margin = 0.05
         ax.set_xlim(-margin, cols + margin)
-        ax.set_ylim(-margin, rows * ratio + stitch_height + margin)
+        ax.set_ylim(-margin, rows + stitch_height + margin)
 
-        ax.set_aspect('equal')
+        ax.set_aspect(ratio)
         ax.axis('off')
 
         plt.tight_layout()
