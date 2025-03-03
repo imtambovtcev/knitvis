@@ -4,7 +4,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PolyCollection
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Polygon
 
 from .palette import KnittingColorPalette
 
@@ -204,8 +204,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]
-            :row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to symbols
         vectorized_index_to_symbol = np.vectorize(self.index_to_symbol)
@@ -217,8 +216,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]
-            :row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to names
         vectorized_index_to_stitch = np.vectorize(self.index_to_stitch)
@@ -232,7 +230,8 @@ class KnittingChart:
         color_tags = np.empty((self.rows, self.cols), dtype='<U4')
 
         # Extract the relevant slice of color indices
-        indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
+        indices_slice = self.color_indices[row_range[0]
+            :row_range[1], column_range[0]:column_range[1]]
 
         # Get the color tags for the sliced indices
         color_tags[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
@@ -246,19 +245,19 @@ class KnittingChart:
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        rgb_colors = np.zeros((self.rows, self.cols, 3), dtype=int)
-
         # Extract the relevant slice of color indices
         indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
 
         # Get the RGB values for the sliced indices
-        rgb_colors[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
+        rgb_colors = np.array(
             self.color_palette.get_color_rgb_by_index(indices_slice.flatten())
         ).reshape((row_range[1] - row_range[0], column_range[1] - column_range[0], 3))
 
         return rgb_colors
 
-    def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold', chart_range: tuple[tuple[int, int] | None, tuple[int, int] | None] | None = None,
+    def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold',
+                      chart_range: tuple[tuple[int, int] | None,
+                                         tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
         """Optimized chart display using Matplotlib collections."""
         # Extract ranges
@@ -357,106 +356,136 @@ class KnittingChart:
 
         return fig
 
-    def render_fabric(self, figsize=None, ratio=0.7, padding=0.01, show_outlines=False, ax=None):
+    def render_fabric(self, fig=None, ax=None,
+                      chart_range: tuple[tuple[int, int] | None,
+                                         tuple[int, int] | None] | None = None,
+                      ratio=0.7, padding=0.01, show_outlines=False,
+                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
         """Render fabric with optimized NumPy/matplotlib operations."""
+
         y_padding = 2*padding
         x_padding = padding
-        thickness = 1.0
-        stitch_height = 2.0
 
-        # Check for non-knit stitches using NumPy
-        if np.any(self.pattern != 0):
-            non_knit_indices = np.where(self.pattern != 0)
-            row, col = non_knit_indices[0][0], non_knit_indices[1][0]
-            stitch_name = self.STITCH_ORDER[self.pattern[row, col]]
-            raise NotImplementedError(
-                f"Rendering for stitch type '{stitch_name}' is not yet implemented. "
-                f"Only knit stitches ('K') are currently supported.")
-
-        # Create figure and axes if needed
-        if ax is None:
-            if figsize is None:
-                width = self.cols
-                height = self.rows + stitch_height
-                aspect_ratio = width / height
-                figsize = (8, 8 / aspect_ratio)
-            fig, ax = plt.subplots(figsize=figsize)
-        else:
-            fig = ax.figure
+        stitches_shapes = {
+            0: [np.array([
+                [x_padding, y_padding],
+                [x_padding, 1-y_padding],
+                [0.5-x_padding, y_padding],
+                [0.5-x_padding, -1+y_padding]
+            ]), np.array([
+                [-x_padding, y_padding],
+                [-x_padding, 1-y_padding],
+                [-0.5+x_padding, y_padding],
+                [-0.5+x_padding, -1+y_padding]
+            ])],
+            1: [np.array([
+                [-0.5+x_padding, 0.3-y_padding],
+                [-0.5+x_padding, -0.3+y_padding],
+                [0.5, -0.3+y_padding],
+                [0.5, 0.3-y_padding]
+            ])]
+        }
 
         # Set outline properties
         edgecolor = 'black' if show_outlines else 'none'
         linewidth = 0.5 if show_outlines else 0
 
-        # Create mesh grids for vectorized operations
-        rows, cols = self.rows, self.cols
-        row_indices, col_indices = np.meshgrid(
-            np.arange(rows),
-            np.arange(cols),
-            indexing='ij'
-        )
+        # Extract ranges
+        range_row = (
+            0, self.rows) if chart_range is None or chart_range[0] is None else chart_range[0]
+        range_col = (
+            0, self.cols) if chart_range is None or chart_range[1] is None else chart_range[1]
 
-        # Get color lookup table from palette
-        color_lookup = np.array([self.color_palette.get_color_by_index(i)
-                                for i in range(self.color_palette.num_colors)])
+        rows_to_draw = range_row[1] - range_row[0]
+        cols_to_draw = range_col[1] - range_col[0]
 
-        # Get all colors in one operation
-        all_colors = color_lookup[self.color_indices]
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(
+                figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
 
+        # Get symbols and colors for the specified range
+        stitches = self.pattern[range_row[0]:range_row[1],
+                                range_col[0]:range_col[1]]
+        colors = self.get_colors_rgb(range_col, range_row)
         # Convert to normalized colors
-        normalized_colors = all_colors.reshape(-1, 3) / 255.0
+        normalized_colors = colors / 255.0
 
-        # Create left and right leg collections
-        left_legs = []
-        right_legs = []
-        stitch_colors = []
+        unique_stitches = np.unique(stitches)
+        # print(f"Unique stitches: {unique_stitches}")
 
-        # Generate vertices for all stitches
-        for i in range(rows):
-            actual_row = rows - 1 - i
-            y_offset = i
+        for stitch_type in unique_stitches:
+            if stitch_type not in stitches_shapes:
+                print(
+                    f"Symbol {self.index_to_stitch(stitch_type)} not supported")
+                continue
+            stitch_shape = stitches_shapes[stitch_type]
 
-            for j in range(cols):
-                # Add color for this stitch
-                stitch_colors.append(normalized_colors[actual_row * cols + j])
+            # Find positions of this stitch type
+            stitch_mask = stitches == stitch_type
+            symbol_indices = np.where(stitch_mask)
 
-                # Stitch legs
-                left_leg = [
-                    [j + 0.5 - x_padding, y_offset + y_padding],
-                    [j + 0.5 - x_padding, y_offset + thickness - y_padding],
-                    [j + x_padding, y_offset + stitch_height - y_padding],
-                    [j + x_padding, y_offset + stitch_height - thickness + y_padding]
-                ]
-                left_legs.append(left_leg)
+            # print(
+            #     f"Drawing {len(symbol_indices[0])} stitches of type {self.index_to_stitch(stitch_type)}")
 
-                right_leg = [
-                    [j + 0.5 + x_padding, y_offset + y_padding],
-                    [j + 0.5 + x_padding, y_offset + thickness - y_padding],
-                    [j + 1 - x_padding, y_offset + stitch_height - y_padding],
-                    [j + 1 - x_padding, y_offset +
-                        stitch_height - thickness + y_padding]
-                ]
-                right_legs.append(right_leg)
+            # Extract colors for the specific stitch positions
+            stitch_colors = normalized_colors[symbol_indices]
 
-        left_collection = PolyCollection(
-            left_legs, facecolors=stitch_colors, edgecolors=edgecolor,
-            linewidth=linewidth, antialiased=True, zorder=2
-        )
-        ax.add_collection(left_collection)
+            # print(f'stitch_colors = {stitch_colors}')
 
-        right_collection = PolyCollection(
-            right_legs, facecolors=stitch_colors, edgecolors=edgecolor,
-            linewidth=linewidth, antialiased=True, zorder=2
-        )
-        ax.add_collection(right_collection)
+            # Create polygon vertices arrays
+            patches = []
+            for i, j in zip(*symbol_indices):
+                for shape in stitch_shape:
+                    patches.append(
+                        shape + np.array([j+range_col[0]+1, i+range_row[0]+1]))
 
-        # Set axis limits and formatting
-        margin = 0.05
-        ax.set_xlim(-margin, cols + margin)
-        ax.set_ylim(-margin, rows + stitch_height + margin)
+            # Repeat each color by the number of shapes per stitch
+            repeated_colors = np.repeat(
+                stitch_colors, len(stitch_shape), axis=0)
+            # print(f'Repeated colors shape: {repeated_colors.shape}')
+
+            collection = PolyCollection(
+                patches,
+                facecolor=repeated_colors,
+                edgecolor=edgecolor,
+                linewidth=linewidth,
+                zorder=2)
+            ax.add_collection(collection)
+
         ax.set_aspect(ratio)
-        ax.axis('off')
 
+        # Set axis limits and ticks
+        ax.set_xlim(range_col[0], 1+range_col[1])
+        ax.set_ylim(1+range_row[1], range_row[0])
+
+        # Handle axis ticks
+        if x_axis_ticks_every_n > 0:
+            ax.set_xticks(
+                np.arange(range_col[0]+1, range_col[1]+1, x_axis_ticks_every_n))
+            if x_axis_ticks_numbers_every_n_tics > 0:
+                tick_labels = np.arange(
+                    range_col[0]+1, range_col[1]+1, x_axis_ticks_every_n)
+                tick_labels = tick_labels.astype(str)
+                tick_labels[np.where(tick_labels.astype(int) %
+                                     x_axis_ticks_numbers_every_n_tics != 0)] = ''
+                ax.set_xticklabels(tick_labels)
+        else:
+            ax.set_xticks([])
+
+        if y_axis_ticks_every_n > 0:
+            ax.set_yticks(
+                np.arange(range_row[0]+1, range_row[1]+1, y_axis_ticks_every_n))
+            if y_axis_ticks_numbers_every_n_ticks > 0:
+                tick_labels = np.arange(
+                    range_row[0]+1, range_row[1]+1, y_axis_ticks_every_n)
+                tick_labels = tick_labels.astype(str)
+                tick_labels[np.where(tick_labels.astype(int) %
+                                     y_axis_ticks_numbers_every_n_ticks != 0)] = ''
+                ax.set_yticklabels(tick_labels)
+        else:
+            ax.set_yticks([])
+
+        ax.set_frame_on(False)
         plt.tight_layout()
         return fig
 
