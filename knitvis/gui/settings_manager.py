@@ -15,6 +15,10 @@ class SettingsManager:
             'show_col_numbers': True,
             'default_row_zoom': 20,
             'default_col_zoom': 20,
+            'x_axis_ticks_every_n': 1,
+            'y_axis_ticks_every_n': 1,
+            'x_axis_ticks_numbers_every_n_tics': 1,
+            'y_axis_ticks_numbers_every_n_ticks': 1,
 
             # Chart view settings
             'chart_cell_border': True,
@@ -23,6 +27,7 @@ class SettingsManager:
             # Fabric view settings
             'fabric_show_outlines': False,
             'fabric_row_spacing': 0.7,  # Direct value (not percentage)
+            'fabric_padding': 0.01,
         }
 
     def get(self, key, default=None):
@@ -72,6 +77,10 @@ class SettingsManager:
             'show_col_numbers': self.get('show_col_numbers'),
             'default_row_zoom': self.get('default_row_zoom'),
             'default_col_zoom': self.get('default_col_zoom'),
+            'x_axis_ticks_every_n': self.get('x_axis_ticks_every_n'),
+            'y_axis_ticks_every_n': self.get('y_axis_ticks_every_n'),
+            'x_axis_ticks_numbers_every_n_tics': self.get('x_axis_ticks_numbers_every_n_tics'),
+            'y_axis_ticks_numbers_every_n_ticks': self.get('y_axis_ticks_numbers_every_n_ticks'),
         }
 
         if view_type == 'chart':
@@ -85,6 +94,7 @@ class SettingsManager:
                 **common_settings,
                 'show_outlines': self.get('fabric_show_outlines'),
                 'row_spacing': self.get('fabric_row_spacing'),  # Direct value
+                'padding': self.get('fabric_padding'),
             }
         else:
             return common_settings

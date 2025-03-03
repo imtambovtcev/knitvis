@@ -81,6 +81,33 @@ class SettingsDialog(QDialog):
             self.settings_manager.get('show_col_numbers', True))
         display_layout.addRow("Show Column Numbers:", self.show_col_numbers)
 
+        # Add tick frequency controls
+        self.x_axis_ticks_every_n = QSpinBox()
+        self.x_axis_ticks_every_n.setRange(1, 10)
+        self.x_axis_ticks_every_n.setValue(
+            self.settings_manager.get('x_axis_ticks_every_n', 1))
+        display_layout.addRow("Column Tick Every:", self.x_axis_ticks_every_n)
+
+        self.y_axis_ticks_every_n = QSpinBox()
+        self.y_axis_ticks_every_n.setRange(1, 10)
+        self.y_axis_ticks_every_n.setValue(
+            self.settings_manager.get('y_axis_ticks_every_n', 1))
+        display_layout.addRow("Row Tick Every:", self.y_axis_ticks_every_n)
+
+        self.x_axis_ticks_numbers_every_n_tics = QSpinBox()
+        self.x_axis_ticks_numbers_every_n_tics.setRange(1, 10)
+        self.x_axis_ticks_numbers_every_n_tics.setValue(
+            self.settings_manager.get('x_axis_ticks_numbers_every_n_tics', 1))
+        display_layout.addRow("Column Number Every:",
+                              self.x_axis_ticks_numbers_every_n_tics)
+
+        self.y_axis_ticks_numbers_every_n_ticks = QSpinBox()
+        self.y_axis_ticks_numbers_every_n_ticks.setRange(1, 10)
+        self.y_axis_ticks_numbers_every_n_ticks.setValue(
+            self.settings_manager.get('y_axis_ticks_numbers_every_n_ticks', 1))
+        display_layout.addRow("Row Number Every:",
+                              self.y_axis_ticks_numbers_every_n_ticks)
+
         display_group.setLayout(display_layout)
         layout.addWidget(display_group)
 
@@ -143,15 +170,24 @@ class SettingsDialog(QDialog):
         stitch_layout.addRow("Show Stitch Outlines:",
                              self.fabric_show_outlines)
 
-        # Replace slider with numeric input for row spacing
+        # Use direct value for row spacing
         self.fabric_row_spacing = QDoubleSpinBox()
-        self.fabric_row_spacing.setRange(0.1, 5.0)
+        self.fabric_row_spacing.setRange(0.1, 1.0)
         self.fabric_row_spacing.setSingleStep(0.05)
         self.fabric_row_spacing.setDecimals(2)
-        # Get direct value (not percentage)
+        # Get direct value
         self.fabric_row_spacing.setValue(
             self.settings_manager.get('fabric_row_spacing', 0.7))
         stitch_layout.addRow("Row Spacing:", self.fabric_row_spacing)
+
+        # Add padding control
+        self.fabric_padding = QDoubleSpinBox()
+        self.fabric_padding.setRange(0.001, 0.1)
+        self.fabric_padding.setSingleStep(0.005)
+        self.fabric_padding.setDecimals(3)
+        self.fabric_padding.setValue(
+            self.settings_manager.get('fabric_padding', 0.01))
+        stitch_layout.addRow("Stitch Padding:", self.fabric_padding)
 
         stitch_group.setLayout(stitch_layout)
         layout.addWidget(stitch_group)
@@ -166,6 +202,10 @@ class SettingsDialog(QDialog):
             'show_col_numbers': self.show_col_numbers.isChecked(),
             'default_row_zoom': self.default_row_zoom.value(),
             'default_col_zoom': self.default_col_zoom.value(),
+            'x_axis_ticks_every_n': self.x_axis_ticks_every_n.value(),
+            'y_axis_ticks_every_n': self.y_axis_ticks_every_n.value(),
+            'x_axis_ticks_numbers_every_n_tics': self.x_axis_ticks_numbers_every_n_tics.value(),
+            'y_axis_ticks_numbers_every_n_ticks': self.y_axis_ticks_numbers_every_n_ticks.value(),
 
             # Chart view settings
             'chart_cell_border': self.chart_cell_border.isChecked(),
@@ -173,8 +213,8 @@ class SettingsDialog(QDialog):
 
             # Fabric view settings
             'fabric_show_outlines': self.fabric_show_outlines.isChecked(),
-            # Store as direct value
             'fabric_row_spacing': self.fabric_row_spacing.value(),
+            'fabric_padding': self.fabric_padding.value(),
         }
 
     def accept_settings(self):
@@ -202,13 +242,29 @@ class SettingsDialog(QDialog):
                 self.settings_manager.get('default_row_zoom'))
             self.default_col_zoom.setValue(
                 self.settings_manager.get('default_col_zoom'))
+
+            # Update tick controls
+            self.x_axis_ticks_every_n.setValue(
+                self.settings_manager.get('x_axis_ticks_every_n'))
+            self.y_axis_ticks_every_n.setValue(
+                self.settings_manager.get('y_axis_ticks_every_n'))
+            self.x_axis_ticks_numbers_every_n_tics.setValue(
+                self.settings_manager.get('x_axis_ticks_numbers_every_n_tics'))
+            self.y_axis_ticks_numbers_every_n_ticks.setValue(
+                self.settings_manager.get('y_axis_ticks_numbers_every_n_ticks'))
+
+            # Chart settings
             self.chart_cell_border.setChecked(
                 self.settings_manager.get('chart_cell_border'))
             self.chart_symbol_size.setValue(
                 self.settings_manager.get('chart_symbol_size'))
+
+            # Fabric settings
             self.fabric_show_outlines.setChecked(
                 self.settings_manager.get('fabric_show_outlines'))
             self.fabric_row_spacing.setValue(
                 self.settings_manager.get('fabric_row_spacing'))
+            self.fabric_padding.setValue(
+                self.settings_manager.get('fabric_padding'))
 
             self.settingsApplied.emit()

@@ -76,6 +76,33 @@ class EditSettingsMenu(QDialog):
             self.current_settings.get('show_col_numbers', True))
         display_layout.addRow("Show Column Numbers:", self.show_col_numbers)
 
+        # Add tick frequency controls
+        self.x_axis_ticks_every_n = QSpinBox()
+        self.x_axis_ticks_every_n.setRange(1, 10)
+        self.x_axis_ticks_every_n.setValue(
+            self.current_settings.get('x_axis_ticks_every_n', 1))
+        display_layout.addRow("Column Tick Every:", self.x_axis_ticks_every_n)
+
+        self.y_axis_ticks_every_n = QSpinBox()
+        self.y_axis_ticks_every_n.setRange(1, 10)
+        self.y_axis_ticks_every_n.setValue(
+            self.current_settings.get('y_axis_ticks_every_n', 1))
+        display_layout.addRow("Row Tick Every:", self.y_axis_ticks_every_n)
+
+        self.x_axis_ticks_numbers_every_n_tics = QSpinBox()
+        self.x_axis_ticks_numbers_every_n_tics.setRange(1, 10)
+        self.x_axis_ticks_numbers_every_n_tics.setValue(
+            self.current_settings.get('x_axis_ticks_numbers_every_n_tics', 1))
+        display_layout.addRow("Column Number Every:",
+                              self.x_axis_ticks_numbers_every_n_tics)
+
+        self.y_axis_ticks_numbers_every_n_ticks = QSpinBox()
+        self.y_axis_ticks_numbers_every_n_ticks.setRange(1, 10)
+        self.y_axis_ticks_numbers_every_n_ticks.setValue(
+            self.current_settings.get('y_axis_ticks_numbers_every_n_ticks', 1))
+        display_layout.addRow("Row Number Every:",
+                              self.y_axis_ticks_numbers_every_n_ticks)
+
         display_group.setLayout(display_layout)
         layout.addWidget(display_group)
 
@@ -136,15 +163,23 @@ class EditSettingsMenu(QDialog):
             self.current_settings.get('show_outlines', False))
         stitch_layout.addRow("Show Stitch Outlines:", self.show_outlines)
 
-        # Replace slider with numeric input for row spacing
+        # Use a double spin box for row spacing (direct value)
         self.row_spacing = QDoubleSpinBox()
         self.row_spacing.setRange(0.1, 1.0)
         self.row_spacing.setSingleStep(0.05)
         self.row_spacing.setDecimals(2)
-        # Convert percentage to decimal (70% -> 0.7)
-        spacing_value = self.current_settings.get('row_spacing', 70) / 100.0
-        self.row_spacing.setValue(spacing_value)
+        # Get direct value (now stored as a floating point value)
+        self.row_spacing.setValue(
+            self.current_settings.get('row_spacing', 0.7))
         stitch_layout.addRow("Row Spacing:", self.row_spacing)
+
+        # Add padding control
+        self.padding = QDoubleSpinBox()
+        self.padding.setRange(0.001, 0.1)
+        self.padding.setSingleStep(0.005)
+        self.padding.setDecimals(3)
+        self.padding.setValue(self.current_settings.get('padding', 0.01))
+        stitch_layout.addRow("Stitch Padding:", self.padding)
 
         stitch_group.setLayout(stitch_layout)
         layout.addWidget(stitch_group)
@@ -158,14 +193,19 @@ class EditSettingsMenu(QDialog):
             'show_col_numbers': self.show_col_numbers.isChecked(),
             'default_row_zoom': self.default_row_zoom.value(),
             'default_col_zoom': self.default_col_zoom.value(),
+            'x_axis_ticks_every_n': self.x_axis_ticks_every_n.value(),
+            'y_axis_ticks_every_n': self.y_axis_ticks_every_n.value(),
+            'x_axis_ticks_numbers_every_n_tics': self.x_axis_ticks_numbers_every_n_tics.value(),
+            'y_axis_ticks_numbers_every_n_ticks': self.y_axis_ticks_numbers_every_n_ticks.value(),
         }
 
         # Add view specific settings
         if self.view_type == 'fabric':
             settings.update({
                 'show_outlines': self.show_outlines.isChecked(),
-                # Store as direct value, not percentage
+                # Store as direct value
                 'row_spacing': self.row_spacing.value(),
+                'padding': self.padding.value(),
             })
         else:
             settings.update({

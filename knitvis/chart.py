@@ -264,7 +264,7 @@ class KnittingChart:
 
         return rgb_colors
 
-    def display_chart(self, fig=None, ax=None, ratio=None, fontsize=12, fontweight='bold',
+    def display_chart(self, fig=None, ax=None, ratio=None, show_borderline=True, fontsize=12, fontweight='bold',
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
@@ -317,9 +317,13 @@ class KnittingChart:
             colors[..., 1] + 0.0722 * colors[..., 2]
         symbol_colors = np.where(luminance.ravel() > 128, "black", "white")
 
+        # Create rectangle patches and configure edge visibility based on show_borderline
         rects = [Rectangle((x, y), 1, 1) for x, y in positions]
         rect_collection = plt.matplotlib.collections.PatchCollection(
-            rects, facecolors=normalized_colors, edgecolors='black')
+            rects,
+            facecolors=normalized_colors,
+            edgecolors='black' if show_borderline else 'none',
+            linewidths=0.5 if show_borderline else 0)
         ax.add_collection(rect_collection)
 
         # Add text for symbols
