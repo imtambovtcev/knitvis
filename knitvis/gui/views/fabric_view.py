@@ -21,7 +21,7 @@ class FabricView(BaseChartView):
 
     STITCHES_SHAPES = {
         0: np.array([
-            [0, 1.2],
+            [0, 0.8],
             [0.5, -0.2],
             [0.5, -1.2],
             [0, -0.2],
@@ -171,7 +171,7 @@ class FabricView(BaseChartView):
 
         if self.background_image is None:
             image_path = self.settings.get('background_image_path', '')
-            if image_path and os.path.exists(image_path):
+            if (image_path and os.path.exists(image_path)):
                 self.load_background_image(image_path)
             else:
                 return
@@ -282,7 +282,7 @@ class FabricView(BaseChartView):
             print("Click outside chart area")
 
     def draw_selection_markers(self):
-        """Draw markers for selected stitches without redrawing the entire view"""
+        """Draw markers for selected stitches using their stitch shapes"""
         # Remove any existing selection markers
         for marker in self.selection_markers:
             try:
@@ -299,37 +299,49 @@ class FabricView(BaseChartView):
         end_row = min(start_row + row_zoom, rows)
         end_col = min(start_col + col_zoom, cols)
 
-        # Create new selection markers for visible selected stitches
+        # Collect all vertices for selected stitches
+        patches = []
         for row, col in self.selected_stitches:
             # Skip if outside current viewport
             if not (start_row <= row < end_row and start_col <= col < end_col):
                 continue
 
-            # For fabric view, draw a dot at the base of the stitch
-            marker = self.ax.scatter(
-                col+1, row+1,     # Position at stitch base
-                s=30,             # Size of dot
-                color='red',      # Red indicator
-                alpha=0.8,        # Slightly transparent
-                zorder=5          # Above everything else
+            # Get stitch type and check if it has a defined shape
+            stitch_type = self.chart.pattern[row, col]
+            if stitch_type not in self.STITCHES_SHAPES:
+                continue
+
+            # Get the base shape for this stitch type
+            base_shape = self.STITCHES_SHAPES[stitch_type]
+
+            # For each point in the shape, create a translated version for this stitch
+            translated_shape = base_shape + np.array([col+1, row+1])
+            # Add as a single polygon to patches
+            patches.append(translated_shape)
+
+        # If we have patches to draw, create a collection
+        if patches:
+            collection = plt.matplotlib.collections.PolyCollection(
+                patches,
+                facecolor='none',
+                edgecolor='red',
+                linewidth=2.0,
+                alpha=0.8,
+                zorder=10  # Ensure it's above everything
             )
-            self.selection_markers.append(marker)
+            self.ax.add_collection(collection)
+            self.selection_markers.append(collection)
 
-        # Update only the markers - much faster than redrawing the whole chart
-        if hasattr(self, 'canvas'):
-            # If we have cached the background, restore it and just draw the markers
-            if self._background is not None:
-                self.canvas.restore_region(self._background)
-
-                # Draw each marker onto the canvas
-                for marker in self.selection_markers:
-                    self.ax.draw_artist(marker)
-
-                # Update the display with the new markers
-                self.canvas.blit(self.ax.bbox)
-            else:
-                # Fall back to full redraw if no background is cached
-                self.canvas.draw()
+            # Update the display
+            if hasattr(self, 'canvas'):
+                # If we have cached the background, restore it and just draw the markers
+                if self._background is not None:
+                    self.canvas.restore_region(self._background)
+                    self.ax.draw_artist(collection)
+                    self.canvas.blit(self.ax.bbox)
+                else:
+                    # Fall back to full redraw if no background is cached
+                    self.canvas.draw()
 
     def show_context_menu(self, event, chart_row=None, chart_col=None):
         """Show context menu for single or multiple stitch operations"""
