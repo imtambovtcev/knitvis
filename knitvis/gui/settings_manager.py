@@ -21,16 +21,27 @@ class SettingsManager:
             'y_axis_ticks_numbers_every_n_ticks': 1,
             'opacity': 1.0,  # Default opacity - fully opaque
 
+            # Background image settings
+            'background_image_enabled': False,
+            'background_image_path': '',
+            'background_image_opacity': 0.3,
+
             # Chart view settings
             'chart_cell_border': True,
             'chart_symbol_size': 12,
             'chart_opacity': 1.0,  # Chart-specific opacity
+            'chart_background_image_enabled': False,
+            'chart_background_image_path': '',
+            'chart_background_image_opacity': 0.3,
 
             # Fabric view settings
             'fabric_show_outlines': False,
             'fabric_row_spacing': 0.7,  # Direct value (not percentage)
             'fabric_padding': 0.01,
             'fabric_opacity': 1.0,  # Fabric-specific opacity
+            'fabric_background_image_enabled': False,
+            'fabric_background_image_path': '',
+            'fabric_background_image_opacity': 0.3,
         }
 
     def get(self, key, default=None):
@@ -85,6 +96,9 @@ class SettingsManager:
             'x_axis_ticks_numbers_every_n_tics': self.get('x_axis_ticks_numbers_every_n_tics'),
             'y_axis_ticks_numbers_every_n_ticks': self.get('y_axis_ticks_numbers_every_n_ticks'),
             'opacity': self.get('opacity'),  # General opacity setting
+            'background_image_enabled': self.get('background_image_enabled'),
+            'background_image_path': self.get('background_image_path'),
+            'background_image_opacity': self.get('background_image_opacity'),
         }
 
         if view_type == 'chart':
@@ -94,6 +108,9 @@ class SettingsManager:
                 'symbol_size': self.get('chart_symbol_size'),
                 # Override with chart-specific opacity
                 'opacity': self.get('chart_opacity'),
+                'background_image_enabled': self.get('chart_background_image_enabled'),
+                'background_image_path': self.get('chart_background_image_path'),
+                'background_image_opacity': self.get('chart_background_image_opacity'),
             }
         elif view_type == 'fabric':
             return {
@@ -103,6 +120,9 @@ class SettingsManager:
                 'padding': self.get('fabric_padding'),
                 # Override with fabric-specific opacity
                 'opacity': self.get('fabric_opacity'),
+                'background_image_enabled': self.get('fabric_background_image_enabled'),
+                'background_image_path': self.get('fabric_background_image_path'),
+                'background_image_opacity': self.get('fabric_background_image_opacity'),
             }
         else:
             return common_settings

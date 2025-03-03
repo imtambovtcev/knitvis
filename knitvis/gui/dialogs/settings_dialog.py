@@ -138,6 +138,25 @@ class SettingsDialog(QDialog):
         nav_group.setLayout(nav_layout)
         layout.addWidget(nav_group)
 
+        # Add background image section
+        bg_group = QGroupBox("Background Image")
+        bg_layout = QFormLayout()
+
+        self.background_image_enabled = QCheckBox()
+        self.background_image_enabled.setChecked(
+            self.settings_manager.get('background_image_enabled', False))
+        bg_layout.addRow("Enable Default Background:",
+                         self.background_image_enabled)
+
+        self.background_image_button = QPushButton(
+            "Configure Background Image...")
+        self.background_image_button.clicked.connect(
+            self.configure_background_image)
+        bg_layout.addRow("", self.background_image_button)
+
+        bg_group.setLayout(bg_layout)
+        layout.addWidget(bg_group)
+
         layout.addStretch(1)
 
     def setup_chart_tab(self):
@@ -170,6 +189,25 @@ class SettingsDialog(QDialog):
 
         appearance_group.setLayout(appearance_layout)
         layout.addWidget(appearance_group)
+
+        # Add chart-specific background image settings
+        bg_group = QGroupBox("Chart Background Image")
+        bg_layout = QFormLayout()
+
+        self.chart_background_image_enabled = QCheckBox()
+        self.chart_background_image_enabled.setChecked(
+            self.settings_manager.get('chart_background_image_enabled', False))
+        bg_layout.addRow("Enable Chart Background:",
+                         self.chart_background_image_enabled)
+
+        self.chart_background_image_button = QPushButton(
+            "Configure Chart Background...")
+        self.chart_background_image_button.clicked.connect(
+            lambda: self.configure_background_image('chart'))
+        bg_layout.addRow("", self.chart_background_image_button)
+
+        bg_group.setLayout(bg_layout)
+        layout.addWidget(bg_group)
 
         layout.addStretch(1)
 
@@ -218,7 +256,72 @@ class SettingsDialog(QDialog):
         stitch_group.setLayout(stitch_layout)
         layout.addWidget(stitch_group)
 
+        # Add fabric-specific background image settings
+        bg_group = QGroupBox("Fabric Background Image")
+        bg_layout = QFormLayout()
+
+        self.fabric_background_image_enabled = QCheckBox()
+        self.fabric_background_image_enabled.setChecked(
+            self.settings_manager.get('fabric_background_image_enabled', False))
+        bg_layout.addRow("Enable Fabric Background:",
+                         self.fabric_background_image_enabled)
+
+        self.fabric_background_image_button = QPushButton(
+            "Configure Fabric Background...")
+        self.fabric_background_image_button.clicked.connect(
+            lambda: self.configure_background_image('fabric'))
+        bg_layout.addRow("", self.fabric_background_image_button)
+
+        bg_group.setLayout(bg_layout)
+        layout.addWidget(bg_group)
+
         layout.addStretch(1)
+
+    def configure_background_image(self, view_type=None):
+        """Open the background image configuration dialog"""
+        from knitvis.gui.dialogs.background_image_dialog import BackgroundImageDialog
+
+        # Determine which settings to use based on view_type
+        if view_type == 'chart':
+            prefix = 'chart_'
+        elif view_type == 'fabric':
+            prefix = 'fabric_'
+        else:
+            prefix = ''
+
+        current_settings = {
+            'background_image_enabled': self.settings_manager.get(f'{prefix}background_image_enabled', False),
+            'background_image_path': self.settings_manager.get(f'{prefix}background_image_path', ''),
+            'background_image_opacity': self.settings_manager.get(f'{prefix}background_image_opacity', 0.3),
+        }
+
+        dialog = BackgroundImageDialog(self, current_settings)
+        dialog.settingsApplied.connect(
+            lambda settings: self.apply_bg_settings(settings, prefix))
+
+        if dialog.exec_():
+            # Settings were accepted
+            pass
+
+    def apply_bg_settings(self, settings, prefix=''):
+        """Apply background image settings from the dialog"""
+        # Store settings based on the prefix (general, chart, or fabric)
+        for key, value in settings.items():
+            self.settings_manager.set(f'{prefix}{key}', value)
+
+        # Update the corresponding checkbox
+        if prefix == 'chart_':
+            self.chart_background_image_enabled.setChecked(
+                settings['background_image_enabled'])
+        elif prefix == 'fabric_':
+            self.fabric_background_image_enabled.setChecked(
+                settings['background_image_enabled'])
+        else:
+            self.background_image_enabled.setChecked(
+                settings['background_image_enabled'])
+
+        # Signal that settings have changed
+        self.settingsApplied.emit()
 
     def gather_settings(self):
         """Gather all settings from the dialog into a dictionary"""
@@ -233,17 +336,23 @@ class SettingsDialog(QDialog):
             'y_axis_ticks_every_n': self.y_axis_ticks_every_n.value(),
             'x_axis_ticks_numbers_every_n_tics': self.x_axis_ticks_numbers_every_n_tics.value(),
             'y_axis_ticks_numbers_every_n_ticks': self.y_axis_ticks_numbers_every_n_ticks.value(),
+            'background_image_enabled': self.background_image_enabled.isChecked(),
+            # We don't change path and opacity here because they're managed by the background image dialog
 
             # Chart view settings
             'chart_cell_border': self.chart_cell_border.isChecked(),
             'chart_symbol_size': self.chart_symbol_size.value(),
             'chart_opacity': self.chart_opacity.value(),  # Chart-specific opacity
+            'chart_background_image_enabled': self.chart_background_image_enabled.isChecked(),
+            # We don't change path and opacity here because they're managed by the background image dialog
 
             # Fabric view settings
             'fabric_show_outlines': self.fabric_show_outlines.isChecked(),
             'fabric_row_spacing': self.fabric_row_spacing.value(),
             'fabric_padding': self.fabric_padding.value(),
             'fabric_opacity': self.fabric_opacity.value(),  # Fabric-specific opacity
+            'fabric_background_image_enabled': self.fabric_background_image_enabled.isChecked(),
+            # We don't change path and opacity here because they're managed by the background image dialog
         }
 
     def accept_settings(self):
@@ -301,5 +410,13 @@ class SettingsDialog(QDialog):
                 self.settings_manager.get('fabric_padding'))
             self.fabric_opacity.setValue(
                 self.settings_manager.get('fabric_opacity'))  # Fabric opacity
+
+            # Update background image checkboxes
+            self.background_image_enabled.setChecked(
+                self.settings_manager.get('background_image_enabled'))
+            self.chart_background_image_enabled.setChecked(
+                self.settings_manager.get('chart_background_image_enabled'))
+            self.fabric_background_image_enabled.setChecked(
+                self.settings_manager.get('fabric_background_image_enabled'))
 
             self.settingsApplied.emit()

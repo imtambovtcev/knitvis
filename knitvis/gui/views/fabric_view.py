@@ -1,3 +1,5 @@
+import os
+
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,6 +41,9 @@ class FabricView(BaseChartView):
         self.settings.setdefault('row_spacing', 0.7)
         self.settings.setdefault('padding', 0.01)
         self.settings.setdefault('opacity', 1.0)  # Default opacity
+
+        # Initialize background image handling
+        self.background_image = None
 
         # Create a container for the chart and its controls
         container = QFrame()
@@ -83,8 +88,25 @@ class FabricView(BaseChartView):
         show_col_numbers = self.settings.get('show_col_numbers', True)
         x_axis_ticks_every_n = self.settings.get('x_axis_ticks_every_n', 1)
         y_axis_ticks_every_n = self.settings.get('y_axis_ticks_every_n', 1)
-        x_axis_ticks_numbers_every_n_tics = self.settings.get('x_axis_ticks_numbers_every_n_tics', 1)
-        y_axis_ticks_numbers_every_n_ticks = self.settings.get('y_axis_ticks_numbers_every_n_ticks', 1)
+        x_axis_ticks_numbers_every_n_tics = self.settings.get(
+            'x_axis_ticks_numbers_every_n_tics', 1)
+        y_axis_ticks_numbers_every_n_ticks = self.settings.get(
+            'y_axis_ticks_numbers_every_n_ticks', 1)
+
+        # Background image settings
+        background_image = None
+        background_opacity = self.settings.get('background_image_opacity', 0.3)
+
+        # Check if background image is enabled and load if needed
+        if self.settings.get('background_image_enabled', False):
+            # Load the image if not already loaded
+            if self.background_image is None:
+                image_path = self.settings.get('background_image_path', '')
+                if image_path and os.path.exists(image_path):
+                    self.load_background_image(image_path)
+
+            # Set background_image to the loaded image
+            background_image = self.background_image
 
         # Store this for click handling calculations
         self.row_spacing = row_spacing
@@ -115,6 +137,8 @@ class FabricView(BaseChartView):
                 padding=padding,
                 show_outlines=show_outlines,
                 opacity=opacity,  # Pass opacity to render_fabric
+                background_image=background_image,
+                background_opacity=background_opacity,
                 x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
                 y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
                 x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,
@@ -191,3 +215,43 @@ class FabricView(BaseChartView):
                 self.stitch_clicked.emit(*correct_index)
             else:
                 print("Clicked outside of any stitch")
+
+    def load_background_image(self, image_path):
+        """Load a background image from file"""
+        try:
+            if not image_path or not os.path.exists(image_path):
+                self.background_image = None
+                return False
+
+            # Load the image using matplotlib's imread
+            self.background_image = plt.imread(image_path)
+
+            # Print image info for debugging
+            print(f"Loaded background image: {image_path}")
+            print(
+                f"Image shape: {self.background_image.shape}, dtype: {self.background_image.dtype}")
+
+            # Check if image dimensions match chart dimensions for better alignment
+            if self.chart:
+                img_height, img_width = self.background_image.shape[:2]
+                chart_rows, chart_cols = self.chart.rows, self.chart.cols
+                print(
+                    f"Chart dimensions: {chart_rows} rows x {chart_cols} columns")
+                print(
+                    f"Image dimensions: {img_height} height x {img_width} width")
+
+                # Provide warnings about aspect ratios
+                chart_ratio = chart_cols / chart_rows
+                fabric_ratio = chart_ratio * \
+                    self.settings.get('row_spacing', 0.7)
+                img_ratio = img_width / img_height
+                if abs(fabric_ratio - img_ratio) > 0.1:
+                    print(
+                        f"Warning: Image aspect ratio ({img_ratio:.2f}) differs from fabric aspect ratio ({fabric_ratio:.2f})")
+                    print("The background image may appear distorted")
+
+            return True
+        except Exception as e:
+            print(f"Error loading background image: {e}")
+            self.background_image = None
+            return False

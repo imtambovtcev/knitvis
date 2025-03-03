@@ -203,7 +203,7 @@ class KnittingChart:
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
 
         return np.unique(pattern_slice)
 
@@ -213,7 +213,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to symbols
         vectorized_index_to_symbol = np.vectorize(self.index_to_symbol)
@@ -225,7 +225,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to names
         vectorized_index_to_stitch = np.vectorize(self.index_to_stitch)
@@ -239,8 +239,7 @@ class KnittingChart:
         color_tags = np.empty((self.rows, self.cols), dtype='<U4')
 
         # Extract the relevant slice of color indices
-        indices_slice = self.color_indices[row_range[0]
-            :row_range[1], column_range[0]:column_range[1]]
+        indices_slice = self.color_indices[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         # Get the color tags for the sliced indices
         color_tags[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
@@ -255,7 +254,8 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the relevant slice of color indices
-        indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
+        indices_slice = self.color_indices[row_range[0]
+            :row_range[1], column_range[0]:column_range[1]]
 
         # Get the RGB values for the sliced indices
         rgb_colors = np.array(
@@ -268,7 +268,7 @@ class KnittingChart:
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
-                      opacity: float = 1.0):  # Added opacity parameter with default 1.0 (fully opaque)
+                      opacity: float = 1.0, background_image=None, background_opacity=0.3):
         """Optimized chart display using Matplotlib collections."""
         # Extract ranges
         range_row = (
@@ -282,6 +282,36 @@ class KnittingChart:
         if fig is None or ax is None:
             fig, ax = plt.subplots(
                 figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
+
+        # Add background image if provided
+        if background_image is not None:
+            try:
+                # Print image info for debugging
+                print(
+                    f"Displaying background image in display_chart: shape={background_image.shape}, dtype={background_image.dtype}")
+
+                # Set the extent to exactly match the current viewport, not the whole chart
+                # The coordinates go from bottom-left corner to top-right corner:
+                # [left, right, bottom, top] in chart coordinates
+                img_extent = [0.5,       # Left edge
+                              self.cols+0.5,       # Right edge
+                              # Bottom edge (y-axis is inverted)
+                              self.rows+0.5,
+                              0.5        # Top edge
+                              ]
+
+                # Use imshow to display the background image exactly in the viewport
+                ax.imshow(
+                    background_image,
+                    extent=img_extent,
+                    aspect='auto',  # Allow stretching to fit the viewport
+                    alpha=background_opacity,
+                    zorder=1  # Below the stitches
+                )
+                print(f"Image displayed with extent {img_extent}")
+
+            except Exception as e:
+                print(f"Error displaying background image: {e}")
 
         # Get symbols and colors for the specified range
         symbols = self.get_symbolic_pattern(range_col, range_row)
@@ -325,14 +355,17 @@ class KnittingChart:
             facecolors=normalized_colors,
             edgecolors='black' if show_borderline else 'none',
             linewidths=0.5 if show_borderline else 0,
-            alpha=opacity)  # Apply opacity to the collection
+            alpha=opacity,  # Apply opacity to the collection
+            zorder=2  # Place above background image
+        )
         ax.add_collection(rect_collection)
 
         # Add text for symbols
         if isinstance(fontsize, (int, float)) and fontsize > 0:
             for pos, symbol, color in zip(symbol_positions, symbol_texts, symbol_colors):
                 ax.text(pos[0], pos[1], symbol, ha='center', va='center',
-                        fontsize=fontsize, fontweight=fontweight, color=color)
+                        fontsize=fontsize, fontweight=fontweight, color=color,
+                        zorder=3)  # Place text above cells
 
         # Set axis limits and ticks
         ax.set_xlim(0.5+range_col[0], 0.5+range_col[1])
@@ -376,7 +409,7 @@ class KnittingChart:
                                          tuple[int, int] | None] | None = None,
                       ratio=0.7, padding=0.01, show_outlines=False,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
-                      opacity: float = 1.0):  # Added opacity parameter with default 1.0 (fully opaque)
+                      opacity: float = 1.0, background_image=None, background_opacity=0.3):
         """Render fabric with optimized NumPy/matplotlib operations."""
 
         y_padding = 2*padding
@@ -419,6 +452,37 @@ class KnittingChart:
             fig, ax = plt.subplots(
                 figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
 
+        # Add background image if provided
+        if background_image is not None:
+            try:
+                # Print image info for debugging
+                print(
+                    f"Displaying background image in render_fabric: shape={background_image.shape}, dtype={background_image.dtype}")
+
+                # For fabric view, we need to adjust the extent to match the different coordinate system
+                # The fabric view has different coordinates with (0,0) at the top-left
+                # and each stitch having a base at (i+1,j+1)
+                img_extent = [0.5,       # Left edge
+                              self.cols+0.5,       # Right edge
+                              # Bottom edge (y-axis is inverted)
+                              self.rows+0.5,
+                              0.5        # Top edge
+                              ]
+
+                # Use imshow to display the background image exactly in the viewport
+                ax.imshow(
+                    background_image,
+                    extent=img_extent,
+                    aspect='auto',  # Allow stretching to fit the viewport
+                    alpha=background_opacity,
+                    zorder=1  # Below the stitches
+                )
+                print(
+                    f"Image displayed with extent {img_extent} for fabric view")
+
+            except Exception as e:
+                print(f"Error displaying background image: {e}")
+
         # Get symbols and colors for the specified range
         stitches = self.pattern[range_row[0]:range_row[1],
                                 range_col[0]:range_col[1]]
@@ -460,7 +524,7 @@ class KnittingChart:
                 edgecolor=edgecolor,
                 linewidth=linewidth,
                 alpha=opacity,  # Apply opacity to the collection
-                zorder=2)
+                zorder=2)  # Above background image
             ax.add_collection(collection)
 
         ax.set_aspect(ratio)

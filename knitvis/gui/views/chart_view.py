@@ -1,12 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import matplotlib.image as mpimg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSizePolicy, QAction, QMenu
+from PyQt5.QtCore import Qt, QObject
 from matplotlib.collections import PatchCollection, QuadMesh
 from matplotlib.text import Text
+import os
 
 from knitvis.gui.views.base_view import BaseChartView
+from knitvis.gui.dialogs.background_image_dialog import BackgroundImageDialog
 
 
 class ChartView(BaseChartView):
@@ -35,6 +39,93 @@ class ChartView(BaseChartView):
 
         # Connect click event
         self.canvas.mpl_connect("button_press_event", self.on_canvas_click)
+
+        # Initialize background image handling
+        self.background_image = None
+        self.settings.setdefault('background_image_enabled', False)
+        self.settings.setdefault('background_image_path', '')
+        self.settings.setdefault('background_image_opacity', 0.3)
+
+        # Add context menu for background image settings
+        self.canvas.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.canvas.customContextMenuRequested.connect(self.show_context_menu)
+
+    def show_context_menu(self, pos):
+        """Show context menu when right-clicking on the chart"""
+        context_menu = QMenu(self)
+
+        # Create menu actions
+        bg_action = QAction("Configure Background Image...", self)
+        bg_action.triggered.connect(self.configure_background)
+        context_menu.addAction(bg_action)
+
+        # Show menu at cursor position
+        context_menu.exec_(self.canvas.mapToGlobal(pos))
+
+    def configure_background(self):
+        """Open dialog to configure background image settings"""
+        dialog = BackgroundImageDialog(self, {
+            'background_image_enabled': self.settings.get('background_image_enabled', False),
+            'background_image_path': self.settings.get('background_image_path', ''),
+            'background_image_opacity': self.settings.get('background_image_opacity', 0.3),
+        })
+
+        dialog.settingsApplied.connect(self.apply_background_settings)
+
+        if dialog.exec_():
+            # Dialog accepted (OK clicked)
+            pass
+
+    def apply_background_settings(self, settings):
+        """Apply background image settings and update the view"""
+        self.settings.update(settings)
+
+        # If background is enabled, try to load the image
+        if settings['background_image_enabled'] and settings['background_image_path']:
+            self.load_background_image(settings['background_image_path'])
+        else:
+            self.background_image = None
+
+        # Update the chart view
+        self.update_view()
+
+    def load_background_image(self, image_path):
+        """Load a background image from file"""
+        try:
+            if not image_path or not os.path.exists(image_path):
+                self.background_image = None
+                return False
+
+            # Load the image using matplotlib's imread
+            self.background_image = plt.imread(image_path)
+
+            # Print image info for debugging
+            print(f"Loaded background image: {image_path}")
+            print(
+                f"Image shape: {self.background_image.shape}, dtype: {self.background_image.dtype}")
+
+            # Check if image dimensions match chart dimensions for better alignment
+            if self.chart:
+                img_height, img_width = self.background_image.shape[:2]
+                chart_rows, chart_cols = self.chart.rows, self.chart.cols
+                print(
+                    f"Chart dimensions: {chart_rows} rows x {chart_cols} columns")
+                print(
+                    f"Image dimensions: {img_height} height x {img_width} width")
+
+                # Warn if aspect ratios don't match
+                chart_ratio = chart_cols / chart_rows
+                img_ratio = img_width / img_height
+                if abs(chart_ratio - img_ratio) > 0.1:
+                    print(
+                        f"Warning: Image aspect ratio ({img_ratio:.2f}) differs from chart aspect ratio ({chart_ratio:.2f})")
+                    print("The background image may appear distorted")
+
+            return True
+        except Exception as e:
+            print(f"Error loading background image: {e}")
+            self.background_image = None
+            return False
 
     def get_view_type(self):
         """Return the view type for settings"""
@@ -71,6 +162,21 @@ class ChartView(BaseChartView):
         y_axis_ticks_numbers_every_n_ticks = self.settings.get(
             'y_axis_ticks_numbers_every_n_ticks', 1)
 
+        # Background image settings
+        background_image = None
+        background_opacity = self.settings.get('background_image_opacity', 0.3)
+
+        # Check if background image is enabled and load if needed
+        if self.settings.get('background_image_enabled', False):
+            # Ensure the image is loaded
+            if self.background_image is None:
+                image_path = self.settings.get('background_image_path', '')
+                if image_path and os.path.exists(image_path):
+                    self.load_background_image(image_path)
+
+            # Set background_image to the loaded image
+            background_image = self.background_image
+
         # Define chart range
         chart_range = ((start_row, start_row + viewport_rows),
                        (start_col, start_col + viewport_cols))
@@ -84,7 +190,9 @@ class ChartView(BaseChartView):
             fontweight='bold',
             ratio=None,
             show_borderline=cell_border,
-            opacity=opacity,  # Pass opacity to display_chart
+            opacity=opacity,
+            background_image=background_image,
+            background_opacity=background_opacity,
             x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
             y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
             x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,
