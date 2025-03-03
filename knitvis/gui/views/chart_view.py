@@ -57,14 +57,44 @@ class ChartView(BaseChartView):
         self.canvas.setContextMenuPolicy(Qt.CustomContextMenu)
         self.canvas.customContextMenuRequested.connect(self.show_context_menu)
 
-    def show_context_menu(self, pos):
+    def show_context_menu(self, pos, chart_row=None, chart_col=None):
         """Show context menu when right-clicking on the chart"""
+        # Check if it's a right-click on a stitch or a general context menu request
+        if chart_row is not None and chart_col is not None:
+            # This is from handle_click - delegate to the base class implementation
+            super().show_context_menu(pos, chart_row, chart_col)
+            return
+
+        # This is from the customContextMenuRequested signal (general right-click)
         context_menu = QMenu(self)
 
         # Create menu actions
         bg_action = QAction("Configure Background Image...", self)
         bg_action.triggered.connect(self.configure_background)
         context_menu.addAction(bg_action)
+
+        # If stitches are selected, add stitch-related options
+        if self.selected_stitches:
+            context_menu.addSeparator()
+
+            if len(self.selected_stitches) == 1:
+                row, col = self.selected_stitches[0]
+                edit_action = QAction(
+                    f"Edit Stitch at ({row+1}, {col+1})...", self)
+                edit_action.triggered.connect(
+                    lambda: self.edit_single_stitch())
+                context_menu.addAction(edit_action)
+            else:
+                edit_action = QAction(
+                    f"Edit {len(self.selected_stitches)} Selected Stitches...", self)
+                edit_action.triggered.connect(
+                    lambda: self.edit_multiple_stitches())
+                context_menu.addAction(edit_action)
+
+            # Add clear selection action
+            clear_action = QAction("Clear Selection", self)
+            clear_action.triggered.connect(self.clear_selection)
+            context_menu.addAction(clear_action)
 
         # Show menu at cursor position
         context_menu.exec_(self.canvas.mapToGlobal(pos))
@@ -284,39 +314,6 @@ class ChartView(BaseChartView):
         # Update the canvas - only draw the markers, not the entire view
         if hasattr(self, 'canvas'):
             self.canvas.draw()
-
-    def show_context_menu(self, event):
-        """Show context menu for single or multiple stitch operations"""
-
-        if not self.selected_stitches:
-            # No stitches selected, nothing to do
-            return
-
-        # Create context menu
-        menu = QMenu(self)
-
-        # Menu actions
-        if len(self.selected_stitches) == 1:
-            # Single stitch actions
-            edit_action = QAction("Edit Stitch...", self)
-            edit_action.triggered.connect(lambda: self.edit_single_stitch())
-            menu.addAction(edit_action)
-        else:
-            # Multiple stitch actions
-            edit_action = QAction(
-                f"Edit {len(self.selected_stitches)} Stitches...", self)
-            edit_action.triggered.connect(
-                lambda: self.edit_multiple_stitches())
-            menu.addAction(edit_action)
-
-        # Add Clear Selection action
-        clear_action = QAction("Clear Selection", self)
-        clear_action.triggered.connect(self.clear_selection)
-        menu.addAction(clear_action)
-
-        # Show menu at cursor position
-        cursor_pos = self.mapFromGlobal(self.cursor().pos())
-        menu.exec_(self.mapToGlobal(cursor_pos))
 
     def edit_single_stitch(self):
         """Edit a single selected stitch"""

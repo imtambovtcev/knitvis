@@ -269,8 +269,9 @@ class FabricView(BaseChartView):
         if hasattr(self, 'canvas'):
             self.canvas.draw()
 
-    def show_context_menu(self, event):
+    def show_context_menu(self, event, chart_row=None, chart_col=None):
         """Show context menu for single or multiple stitch operations"""
+        # Note: The method signature now matches the base class expectation
 
         if not self.selected_stitches:
             # No stitches selected, nothing to do
@@ -282,11 +283,24 @@ class FabricView(BaseChartView):
         # Menu actions
         if len(self.selected_stitches) == 1:
             # Single stitch actions
+            row, col = self.selected_stitches[0]
+            title_action = QAction(
+                f"Stitch at Row {row+1}, Column {col+1}", self)
+            title_action.setEnabled(False)
+            menu.addAction(title_action)
+            menu.addSeparator()
+
             edit_action = QAction("Edit Stitch...", self)
             edit_action.triggered.connect(lambda: self.edit_single_stitch())
             menu.addAction(edit_action)
         else:
             # Multiple stitch actions
+            title_action = QAction(
+                f"Edit {len(self.selected_stitches)} Stitches...", self)
+            title_action.setEnabled(False)
+            menu.addAction(title_action)
+            menu.addSeparator()
+
             edit_action = QAction(
                 f"Edit {len(self.selected_stitches)} Stitches...", self)
             edit_action.triggered.connect(
@@ -294,12 +308,17 @@ class FabricView(BaseChartView):
             menu.addAction(edit_action)
 
         # Add Clear Selection action
+        menu.addSeparator()
         clear_action = QAction("Clear Selection", self)
         clear_action.triggered.connect(self.clear_selection)
         menu.addAction(clear_action)
 
-        # Show menu at cursor position
-        cursor_pos = self.mapFromGlobal(self.cursor().pos())
+        # Show menu at cursor position or event position if provided
+        if isinstance(event, QPoint):
+            cursor_pos = event
+        else:
+            cursor_pos = self.mapFromGlobal(self.cursor().pos())
+
         menu.exec_(self.mapToGlobal(cursor_pos))
 
     def edit_single_stitch(self):
