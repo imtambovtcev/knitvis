@@ -128,6 +128,22 @@ class KnitVisApp(QMainWindow):
         self.controllers.append(fabric_controller)
         self.tab_widget.addTab(fabric_view, "Fabric View")
 
+        # Connect tab change signal to update the active view
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+
+        # Update the initial view
+        self.on_tab_changed(0)  # Update the first tab
+
+    def on_tab_changed(self, index):
+        """Handle tab change events to update the active view"""
+        if index < 0 or index >= self.tab_widget.count():
+            return
+
+        # Get the view at the current tab
+        current_view = self.tab_widget.widget(index)
+        if hasattr(current_view, 'update_view'):
+            current_view.update_view()
+
     def new_chart(self):
         """Create a new chart, prompting for dimensions"""
         from knitvis.gui.dialogs import NewChartDialog

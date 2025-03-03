@@ -21,12 +21,12 @@ class FabricView(BaseChartView):
 
     STITCHES_SHAPES = {
         0: np.array([
-            [0, 1],
-            [0.5, 0],
-            [0.5, -1],
-            [0, 0],
-            [-0.5, -1],
-            [-0.5, 0]
+            [0, 1.2],
+            [0.5, -0.2],
+            [0.5, -1.2],
+            [0, -0.2],
+            [-0.5, -1.2],
+            [-0.5, -0.2]
         ]),
         1: np.array([
             [-0.5, 0.3],
@@ -383,3 +383,9 @@ class FabricView(BaseChartView):
             print(f"Error loading background image: {e}")
             self.background_image = None
             return False
+
+    def showEvent(self, event):
+        """Handle show event by updating the view if needed"""
+        super().showEvent(event)
+        # Update the view when the widget becomes visible
+        self.update_view()

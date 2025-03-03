@@ -211,3 +211,15 @@ class BaseChartView(QWidget):
         if event.key() == Qt.Key_Shift:
             self.selection_active = False
         super().keyReleaseEvent(event)
+
+    def showEvent(self, event):
+        """Handle show event by updating the view if needed"""
+        super().showEvent(event)
+
+        # Only update if we have a chart
+        if self.chart:
+            # Update the view when the widget becomes visible
+            self.update_view()
+
+            # Print debug info
+            print(f"View {self.__class__.__name__} shown, updated view")

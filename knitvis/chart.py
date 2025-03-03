@@ -417,15 +417,15 @@ class KnittingChart:
 
         stitches_shapes = {
             0: [np.array([
-                [x_padding, y_padding],
-                [x_padding, 1-y_padding],
-                [0.5-x_padding, -y_padding],
-                [0.5-x_padding, -1+y_padding]
+                [x_padding, y_padding-0.2],
+                [x_padding, 1-y_padding-0.2],
+                [0.5-x_padding, -y_padding-0.2],
+                [0.5-x_padding, -1+y_padding-0.2]
             ]), np.array([
-                [-x_padding, y_padding],
-                [-x_padding, 1-y_padding],
-                [-0.5+x_padding, -y_padding],
-                [-0.5+x_padding, -1+y_padding]
+                [-x_padding, y_padding-0.2],
+                [-x_padding, 1-y_padding-0.2],
+                [-0.5+x_padding, -y_padding-0.2],
+                [-0.5+x_padding, -1+y_padding-0.2]
             ])],
             1: [np.array([
                 [-0.5+x_padding, 0.3-y_padding],

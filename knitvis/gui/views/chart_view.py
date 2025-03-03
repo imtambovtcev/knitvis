@@ -359,3 +359,9 @@ class ChartView(BaseChartView):
 
             # Redraw chart with updated stitches
             self.update_view()
+
+    def showEvent(self, event):
+        """Handle show event by updating the view if needed"""
+        super().showEvent(event)
+        # Update the view when the widget becomes visible
+        self.update_view()
