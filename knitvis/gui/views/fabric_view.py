@@ -12,6 +12,8 @@ from PyQt5.QtWidgets import (QCheckBox, QFrame, QGridLayout, QHBoxLayout,
                              QVBoxLayout, QWidget)
 
 from knitvis.gui.views.base_view import BaseChartView
+from PyQt5.QtWidgets import QMenu, QAction
+from PyQt5.QtCore import QPoint
 
 
 class FabricView(BaseChartView):
@@ -62,6 +64,12 @@ class FabricView(BaseChartView):
             0, 0).widget().layout().addWidget(container)
 
         # Connect click event
+        self.canvas.mpl_connect("button_press_event", self.on_canvas_click)
+
+        # Initialize selection markers
+        self.selection_markers = []
+
+        # Connect click events with modifiers
         self.canvas.mpl_connect("button_press_event", self.on_canvas_click)
 
     def get_view_type(self):
@@ -145,6 +153,10 @@ class FabricView(BaseChartView):
                 y_axis_ticks_numbers_every_n_ticks=y_axis_ticks_numbers_every_n_ticks
             )
 
+            # Draw selection markers if any are selected
+            if self.selected_stitches:
+                self.draw_selection_markers()
+
         except Exception as e:
             # If chart contains non-knit stitches or other error, show a message
             self.ax.text(0.5, 0.5, f"Error rendering fabric: {str(e)}",
@@ -156,6 +168,10 @@ class FabricView(BaseChartView):
 
         self.canvas.draw()
 
+        # After drawing the fabric, draw selection markers
+        if self.selected_stitches:
+            self.draw_selection_markers()
+
     @staticmethod
     def is_point_inside_polygon(x, y, shape):
         """
@@ -166,7 +182,6 @@ class FabricView(BaseChartView):
 
     def on_canvas_click(self, event):
         """Handle click events on the canvas and map to chart coordinates."""
-
         if event.xdata is None or event.ydata is None or not self.chart:
             return
 
@@ -211,10 +226,123 @@ class FabricView(BaseChartView):
 
             if correct_index:
                 print(f"Clicked on stitch at {correct_index}")
-                correct_index = correct_index[1]-1, correct_index[0]-1
-                self.stitch_clicked.emit(*correct_index)
+                chart_row, chart_col = correct_index[1]-1, correct_index[0]-1
+
+                # Use base class method to handle the click
+                self.handle_click(event, chart_row, chart_col)
             else:
                 print("Clicked outside of any stitch")
+
+    def draw_selection_markers(self):
+        """Draw markers for selected stitches in the fabric view"""
+        # Remove any existing selection markers
+        for marker in self.selection_markers:
+            if marker in self.ax.patches:
+                marker.remove()
+        self.selection_markers = []
+
+        # Get viewport parameters
+        start_row, start_col, row_zoom, col_zoom = self.get_viewport_parameters()
+
+        # Calculate actual viewport dimensions
+        rows, cols = self.chart.rows, self.chart.cols
+        end_row = min(start_row + row_zoom, rows)
+        end_col = min(start_col + col_zoom, cols)
+
+        # Create new selection markers for visible selected stitches
+        for row, col in self.selected_stitches:
+            # Skip if outside current viewport
+            if not (start_row <= row < end_row and start_col <= col < end_col):
+                continue
+
+            # For fabric view, draw a dot at the base of the stitch
+            marker = self.ax.scatter(
+                col+1, row+1,     # Position at stitch base
+                s=30,             # Size of dot
+                color='red',      # Red indicator
+                alpha=0.8,        # Slightly transparent
+                zorder=5          # Above everything else
+            )
+            self.selection_markers.append(marker)
+
+        # Update the canvas
+        if hasattr(self, 'canvas'):
+            self.canvas.draw()
+
+    def show_context_menu(self, event):
+        """Show context menu for single or multiple stitch operations"""
+
+        if not self.selected_stitches:
+            # No stitches selected, nothing to do
+            return
+
+        # Create context menu
+        menu = QMenu(self)
+
+        # Menu actions
+        if len(self.selected_stitches) == 1:
+            # Single stitch actions
+            edit_action = QAction("Edit Stitch...", self)
+            edit_action.triggered.connect(lambda: self.edit_single_stitch())
+            menu.addAction(edit_action)
+        else:
+            # Multiple stitch actions
+            edit_action = QAction(
+                f"Edit {len(self.selected_stitches)} Stitches...", self)
+            edit_action.triggered.connect(
+                lambda: self.edit_multiple_stitches())
+            menu.addAction(edit_action)
+
+        # Add Clear Selection action
+        clear_action = QAction("Clear Selection", self)
+        clear_action.triggered.connect(self.clear_selection)
+        menu.addAction(clear_action)
+
+        # Show menu at cursor position
+        cursor_pos = self.mapFromGlobal(self.cursor().pos())
+        menu.exec_(self.mapToGlobal(cursor_pos))
+
+    def edit_single_stitch(self):
+        """Edit a single selected stitch"""
+        if self.selected_stitches:
+            row, col = self.selected_stitches[0]
+            # Use the existing dialog and controller for single stitch editing
+            self.stitch_clicked.emit(row, col)
+
+    def edit_multiple_stitches(self):
+        """Edit multiple selected stitches"""
+        from knitvis.gui.dialogs import MultipleStitchDialog
+
+        if not self.selected_stitches or not self.chart:
+            return
+
+        # Create dialog for bulk editing
+        dialog = MultipleStitchDialog(self, self.chart, self.selected_stitches)
+
+        if dialog.exec_():
+            # Dialog accepted, get the selected values
+            stitch_type, color = dialog.get_selection()
+
+            # Apply changes to all selected stitches
+            for row, col in self.selected_stitches:
+                # Convert stitch index to name
+                if stitch_type is not None:
+                    stitch_name = self.chart.STITCH_ORDER[stitch_type]
+                else:
+                    stitch_name = None
+
+                # Convert QColor to RGB tuple if needed
+                if color and color.isValid():
+                    color_rgb = (color.red(), color.green(), color.blue())
+                else:
+                    color_rgb = None
+
+                # Update the stitch in the chart
+                self.chart.set_stitch(
+                    row, col, stitch_type=stitch_name, color_rgb=color_rgb)
+
+            # Redraw chart with updated stitches
+            self.update_view()
 
     def load_background_image(self, image_path):
         """Load a background image from file"""

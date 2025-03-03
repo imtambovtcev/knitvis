@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QColorDialog, QMenu, QAction
 from PyQt5.QtGui import QColor
 
 from knitvis.gui.controllers.base_controller import BaseController
-from knitvis.gui.dialogs import StitchDialog
+from knitvis.gui.dialogs import StitchDialog, MultipleStitchDialog
 
 
 class ChartController(BaseController):
@@ -11,6 +11,8 @@ class ChartController(BaseController):
     def connect_signals(self):
         """Connect view signals to controller methods"""
         self.view.stitch_clicked.connect(self.on_stitch_clicked)
+        self.view.multiple_stitches_selected.connect(
+            self.on_multiple_stitches_selected)
 
     def on_stitch_clicked(self, row, col):
         """Handle stitch click event"""
@@ -47,3 +49,9 @@ class ChartController(BaseController):
 
             # Update the view
             self.update_chart()
+
+    def on_multiple_stitches_selected(self, selected_stitches):
+        """Handle when multiple stitches are selected"""
+        # This is handled directly by the view's context menu currently
+        # This method can be used for additional functionality in the future
+        pass

@@ -74,17 +74,57 @@ def test_fabric_view_click_signal(qtbot, fabric_view):
         class MockEvent:
             xdata = 2.2  # Center of second stitch
             ydata = 4.2  # Near bottom of chart
+            button = 1  # Left mouse button
+            modifiers = frozenset()  # No keyboard modifiers
+            def pos(): return None  # Dummy position method
 
         # Set row_spacing for the test
         fabric_view.row_spacing = 0.7
+        # Call the top-level on_canvas_click method
         fabric_view.on_canvas_click(MockEvent())
 
     # Get the row and column from the signal
     row, col = spy.args
 
-    # The exact row/col depends on viewport and coordinate conversions
-    # This test may need adjustment based on your implementation
+    # Verify expected coordinates
     assert isinstance(row, int)
     assert isinstance(col, int)
-    assert col == 1
-    assert row == 3
+    assert col == 1  # Exact column depends on coordinate conversion
+    assert row == 3  # Exact row depends on coordinate conversion
+
+    # Also check that the clicked stitch was selected
+    assert (row, col) in fabric_view.selected_stitches
+
+
+def test_fabric_view_shift_click_selection(qtbot, fabric_view):
+    """Test that shift+clicking on the fabric view adds to selection without emitting stitch_clicked"""
+    # First click to select a stitch normally
+    class MockNormalEvent:
+        xdata = 2.2  # First stitch position
+        ydata = 4.2
+        button = 1  # Left mouse button
+        modifiers = frozenset()  # No modifiers
+        def pos(): return None  # Dummy position method
+
+    # Set row_spacing for the test
+    fabric_view.row_spacing = 0.7
+
+    # Perform the first click
+    with qtbot.waitSignal(fabric_view.stitch_clicked):
+        fabric_view.on_canvas_click(MockNormalEvent())
+
+    # Now shift-click on a different stitch
+    class MockShiftEvent:
+        xdata = 3.2  # Second stitch position
+        ydata = 3.2
+        button = 1  # Left mouse button
+        modifiers = frozenset(['shift'])  # Shift key modifier
+        def pos(): return None  # Dummy position method
+
+    # Perform the shift click - should NOT emit stitch_clicked
+    # Instead, should just add to selection
+    with qtbot.assertNotEmitted(fabric_view.stitch_clicked, wait=100):
+        fabric_view.on_canvas_click(MockShiftEvent())
+
+    # Should now have two stitches selected
+    assert len(fabric_view.selected_stitches) == 2

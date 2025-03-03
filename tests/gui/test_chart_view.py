@@ -85,13 +85,48 @@ def test_chart_view_click_signal(qtbot, chart_view):
         class MockEvent:
             xdata = 4.0  # Center of cell
             ydata = 2.0  # Center of cell
+            button = 1  # Left mouse button
+            modifiers = frozenset()  # No keyboard modifiers
+            def pos(): return None  # Dummy position method
 
         chart_view.on_canvas_click(MockEvent())
 
     # Get the row and column from the signal
     row, col = spy.args
 
-    # For the test chart size and viewport, clicking at 1.5, 1.5 should be row 3, col 1
-    # (exact coordinates depend on how your on_canvas_click converts coordinates)
+    # Verify expected coordinates
     assert row == 1  # This may need adjustment based on your coordinate system
-    assert col == 3  # We clicked in the column (index 1)
+    assert col == 3  # This may need adjustment based on your coordinate system
+
+    # Also check that the clicked stitch was selected
+    assert (row, col) in chart_view.selected_stitches
+
+
+def test_chart_view_selection(qtbot, chart_view):
+    """Test that selection works correctly in the chart view"""
+    # First, make a normal click to select one stitch
+    class MockEvent1:
+        xdata = 1.7  # Position for one stitch
+        ydata = 1.7
+        button = 1  # Left mouse button
+        modifiers = frozenset()  # No modifiers
+        def pos(): return None  # Dummy position method
+
+    chart_view.on_canvas_click(MockEvent1())
+    assert len(chart_view.selected_stitches) == 1
+
+    # Now make a shift-click on a different stitch
+    class MockEvent2:
+        xdata = 2.7  # Position for another stitch
+        ydata = 2.7
+        button = 1  # Left mouse button
+        modifiers = frozenset(['shift'])  # Shift key modifier
+        def pos(): return None  # Dummy position method
+
+    chart_view.on_canvas_click(MockEvent2())
+    # Should now have two stitches selected
+    assert len(chart_view.selected_stitches) == 2
+
+    # Test clearing selection
+    chart_view.clear_selection()
+    assert len(chart_view.selected_stitches) == 0
