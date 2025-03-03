@@ -23,6 +23,7 @@ class ChartView(BaseChartView):
     def init_ui(self):
         # Initialize additional view-specific settings
         self.settings.setdefault('cell_border', True)
+        # Remove the show_symbols setting, we'll just use symbol_size=0 to hide
         self.settings.setdefault('symbol_size', 12)
 
         # Create figure with tight layout
@@ -195,6 +196,7 @@ class ChartView(BaseChartView):
         show_row_numbers = self.settings.get('show_row_numbers', True)
         show_col_numbers = self.settings.get('show_col_numbers', True)
         cell_border = self.settings.get('cell_border', True)
+        # If size=0, no symbols will be shown
         symbol_size = self.settings.get('symbol_size', 12)
         opacity = self.settings.get('opacity', 1.0)
         x_axis_ticks_every_n = self.settings.get('x_axis_ticks_every_n', 1)
@@ -212,12 +214,11 @@ class ChartView(BaseChartView):
         self.render_background(chart_range)
 
         # Use display_chart method from KnittingChart to render the chart itself
-        # (note: no background_image parameter)
         self.chart.display_chart(
             fig=self.figure,
             ax=self.ax,
             chart_range=chart_range,
-            fontsize=symbol_size if symbol_size > 0 else 0,
+            fontsize=symbol_size,  # If symbol_size=0, no symbols will be shown
             fontweight='bold',
             ratio=None,
             show_borderline=cell_border,

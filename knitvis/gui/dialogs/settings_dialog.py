@@ -173,10 +173,13 @@ class SettingsDialog(QDialog):
         appearance_layout.addRow("Show Cell Borders:", self.chart_cell_border)
 
         self.chart_symbol_size = QSpinBox()
-        self.chart_symbol_size.setRange(8, 24)
+        self.chart_symbol_size.setRange(0, 24)  # Allow 0 to hide symbols
         self.chart_symbol_size.setValue(
             self.settings_manager.get('chart_symbol_size', 12))
-        appearance_layout.addRow("Symbol Size:", self.chart_symbol_size)
+        appearance_layout.addRow(
+            "Symbol Size (0 to hide):", self.chart_symbol_size)
+
+        # Remove the checkbox connection code
 
         # Add chart-specific opacity control
         self.chart_opacity = QDoubleSpinBox()
@@ -341,6 +344,7 @@ class SettingsDialog(QDialog):
 
             # Chart view settings
             'chart_cell_border': self.chart_cell_border.isChecked(),
+            # Remove chart_show_symbols setting
             'chart_symbol_size': self.chart_symbol_size.value(),
             'chart_opacity': self.chart_opacity.value(),  # Chart-specific opacity
             'chart_background_image_enabled': self.chart_background_image_enabled.isChecked(),
@@ -396,6 +400,7 @@ class SettingsDialog(QDialog):
             # Chart settings
             self.chart_cell_border.setChecked(
                 self.settings_manager.get('chart_cell_border'))
+            # Remove chart_show_symbols reset
             self.chart_symbol_size.setValue(
                 self.settings_manager.get('chart_symbol_size'))
             self.chart_opacity.setValue(

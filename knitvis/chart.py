@@ -330,8 +330,8 @@ class KnittingChart:
         )
         ax.add_collection(rect_collection)
 
-        # Add text for symbols
-        if isinstance(fontsize, (int, float)) and fontsize > 0:
+        # Add text for symbols only if fontsize > 0
+        if fontsize > 0:
             for pos, symbol, color in zip(symbol_positions, symbol_texts, symbol_colors):
                 ax.text(pos[0], pos[1], symbol, ha='center', va='center',
                         fontsize=fontsize, fontweight=fontweight, color=color,
