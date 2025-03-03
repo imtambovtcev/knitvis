@@ -251,6 +251,12 @@ class BaseChartView(QWidget):
                 self._background = None  # Clear invalid background
         return False
 
+    def render_background(self, chart_range):
+        """Base implementation for rendering background images"""
+        # This is a placeholder that should be implemented by subclasses
+        # that support background images
+        pass
+
     def keyPressEvent(self, event):
         """Handle key press events for selection mode"""
         if event.key() == Qt.Key_Shift:

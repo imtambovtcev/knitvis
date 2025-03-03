@@ -268,7 +268,7 @@ class KnittingChart:
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
-                      opacity: float = 1.0, background_image=None, background_opacity=0.3):
+                      opacity: float = 1.0):
         """Optimized chart display using Matplotlib collections."""
         # Extract ranges
         range_row = (
@@ -282,35 +282,6 @@ class KnittingChart:
         if fig is None or ax is None:
             fig, ax = plt.subplots(
                 figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
-
-        # Add background image if provided
-        if background_image is not None:
-            try:
-                # Print image info for debugging
-                print(
-                    f"Displaying background image in display_chart: shape={background_image.shape}, dtype={background_image.dtype}")
-
-                # Set the extent to exactly match the current viewport
-                # [left, right, bottom, top] in chart coordinates
-                img_extent = [
-                    range_col[0] + 0.5,       # Left edge
-                    range_col[1] + 0.5,      # Right edge
-                    range_row[1] + 0.5,      # Bottom edge (y-axis is inverted)
-                    range_row[0] + 0.5       # Top edge
-                ]
-
-                # Use imshow to display the background image exactly in the viewport
-                ax.imshow(
-                    background_image,
-                    extent=img_extent,
-                    aspect='auto',  # Allow stretching to fit the viewport
-                    alpha=background_opacity,
-                    zorder=1  # Below the stitches
-                )
-                print(f"Image displayed with extent {img_extent}")
-
-            except Exception as e:
-                print(f"Error displaying background image: {e}")
 
         # Get symbols and colors for the specified range
         symbols = self.get_symbolic_pattern(range_col, range_row)
@@ -408,7 +379,7 @@ class KnittingChart:
                                          tuple[int, int] | None] | None = None,
                       ratio=0.7, padding=0.01, show_outlines=False,
                       x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
-                      opacity: float = 1.0, background_image=None, background_opacity=0.3):
+                      opacity: float = 1.0):
         """Render fabric with optimized NumPy/matplotlib operations."""
 
         y_padding = 2*padding
@@ -451,35 +422,6 @@ class KnittingChart:
             fig, ax = plt.subplots(
                 figsize=(cols_to_draw * 0.8, rows_to_draw * 0.8))
 
-        # Add background image if provided
-        if background_image is not None:
-            try:
-                # Print image info for debugging
-                print(
-                    f"Displaying background image in render_fabric: shape={background_image.shape}, dtype={background_image.dtype}")
-
-                # Set the extent to exactly match the current viewport for fabric view
-                img_extent = [
-                    range_col[0] + 0,       # Left edge
-                    range_col[1] + 1,      # Right edge
-                    range_row[1] + 1,      # Bottom edge (y-axis is inverted)
-                    range_row[0] + 0       # Top edge
-                ]
-
-                # Use imshow to display the background image exactly in the viewport
-                ax.imshow(
-                    background_image,
-                    extent=img_extent,
-                    aspect='auto',  # Allow stretching to fit the viewport
-                    alpha=background_opacity,
-                    zorder=1  # Below the stitches
-                )
-                print(
-                    f"Image displayed with extent {img_extent} for fabric view")
-
-            except Exception as e:
-                print(f"Error displaying background image: {e}")
-
         # Get symbols and colors for the specified range
         stitches = self.pattern[range_row[0]:range_row[1],
                                 range_col[0]:range_col[1]]
@@ -488,7 +430,6 @@ class KnittingChart:
         normalized_colors = colors / 255.0
 
         unique_stitches = np.unique(stitches)
-        # print(f"Unique stitches: {unique_stitches}")
 
         for stitch_type in unique_stitches:
             if stitch_type not in stitches_shapes:
@@ -520,8 +461,8 @@ class KnittingChart:
                 facecolor=repeated_colors,
                 edgecolor=edgecolor,
                 linewidth=linewidth,
-                alpha=opacity,  # Apply opacity to the collection
-                zorder=2)  # Above background image
+                alpha=opacity,
+                zorder=2)  # Above background image (if any)
             ax.add_collection(collection)
 
         ax.set_aspect(ratio)

@@ -105,21 +105,6 @@ class FabricView(BaseChartView):
         y_axis_ticks_numbers_every_n_ticks = self.settings.get(
             'y_axis_ticks_numbers_every_n_ticks', 1)
 
-        # Background image settings
-        background_image = None
-        background_opacity = self.settings.get('background_image_opacity', 0.3)
-
-        # Check if background image is enabled and load if needed
-        if self.settings.get('background_image_enabled', False):
-            # Load the image if not already loaded
-            if self.background_image is None:
-                image_path = self.settings.get('background_image_path', '')
-                if image_path and os.path.exists(image_path):
-                    self.load_background_image(image_path)
-
-            # Set background_image to the loaded image
-            background_image = self.background_image
-
         # Store this for click handling calculations
         self.row_spacing = row_spacing
 
@@ -136,11 +121,14 @@ class FabricView(BaseChartView):
         viewport_cols = end_col - start_col
 
         try:
-            # Use render_fabric from KnittingChart instead of custom rendering
+            # Define the chart range based on viewport
             chart_range = ((start_row, start_row + viewport_rows),
                            (start_col, start_col + viewport_cols))
 
-            # Call chart's render_fabric method with our parameters
+            # Render the background image first (below the fabric)
+            self.render_background(chart_range)
+
+            # Call chart's render_fabric method without background image
             self.chart.render_fabric(
                 fig=self.figure,
                 ax=self.ax,
@@ -148,9 +136,7 @@ class FabricView(BaseChartView):
                 ratio=row_spacing,
                 padding=padding,
                 show_outlines=show_outlines,
-                opacity=opacity,  # Pass opacity to render_fabric
-                background_image=background_image,
-                background_opacity=background_opacity,
+                opacity=opacity,
                 x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
                 y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
                 x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,
@@ -176,6 +162,54 @@ class FabricView(BaseChartView):
                          fontsize=12)
             self.ax.set_axis_off()
             self.canvas.draw()
+
+    def render_background(self, chart_range):
+        """Render background image for the fabric view"""
+        # Only proceed if background is enabled and we have an image
+        if not self.settings.get('background_image_enabled', False):
+            return
+
+        if self.background_image is None:
+            image_path = self.settings.get('background_image_path', '')
+            if image_path and os.path.exists(image_path):
+                self.load_background_image(image_path)
+            else:
+                return
+
+        # Get background opacity setting
+        background_opacity = self.settings.get('background_image_opacity', 0.3)
+
+        try:
+            # Extract the viewport range
+            range_row, range_col = chart_range
+
+            # For fabric view, we need to adjust the extent slightly
+            # to account for the different coordinate system
+            img_extent = [
+                0,                  # Left edge
+                self.chart.cols+1,  # Right edge
+                self.chart.rows+1,  # Bottom edge (y-axis is inverted)
+                0                   # Top edge
+            ]
+
+            # Use imshow to display the background image covering the whole fabric area
+            self.ax.imshow(
+                self.background_image,
+                extent=img_extent,
+                aspect='auto',      # Allow stretching to fit
+                alpha=background_opacity,
+                zorder=1            # Below the stitches
+            )
+
+            # Set axis limits to match the current viewport
+            self.ax.set_xlim(range_col[0], range_col[1] + 1)
+            self.ax.set_ylim(range_row[1] + 1, range_row[0])
+
+            print(
+                f"Fabric background image displayed with extent {img_extent}")
+
+        except Exception as e:
+            print(f"Error rendering background image: {e}")
 
     @staticmethod
     def is_point_inside_polygon(x, y, shape):

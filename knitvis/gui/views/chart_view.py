@@ -196,7 +196,7 @@ class ChartView(BaseChartView):
         show_col_numbers = self.settings.get('show_col_numbers', True)
         cell_border = self.settings.get('cell_border', True)
         symbol_size = self.settings.get('symbol_size', 12)
-        opacity = self.settings.get('opacity', 1.0)  # Get opacity setting
+        opacity = self.settings.get('opacity', 1.0)
         x_axis_ticks_every_n = self.settings.get('x_axis_ticks_every_n', 1)
         y_axis_ticks_every_n = self.settings.get('y_axis_ticks_every_n', 1)
         x_axis_ticks_numbers_every_n_tics = self.settings.get(
@@ -204,26 +204,15 @@ class ChartView(BaseChartView):
         y_axis_ticks_numbers_every_n_ticks = self.settings.get(
             'y_axis_ticks_numbers_every_n_ticks', 1)
 
-        # Background image settings
-        background_image = None
-        background_opacity = self.settings.get('background_image_opacity', 0.3)
-
-        # Check if background image is enabled and load if needed
-        if self.settings.get('background_image_enabled', False):
-            # Ensure the image is loaded
-            if self.background_image is None:
-                image_path = self.settings.get('background_image_path', '')
-                if image_path and os.path.exists(image_path):
-                    self.load_background_image(image_path)
-
-            # Set background_image to the loaded image
-            background_image = self.background_image
-
-        # Define chart range
+        # Define chart range based on viewport
         chart_range = ((start_row, start_row + viewport_rows),
                        (start_col, start_col + viewport_cols))
 
-        # Use display_chart method from KnittingChart to render the base chart
+        # Render background image first (below the chart)
+        self.render_background(chart_range)
+
+        # Use display_chart method from KnittingChart to render the chart itself
+        # (note: no background_image parameter)
         self.chart.display_chart(
             fig=self.figure,
             ax=self.ax,
@@ -233,8 +222,6 @@ class ChartView(BaseChartView):
             ratio=None,
             show_borderline=cell_border,
             opacity=opacity,
-            background_image=background_image,
-            background_opacity=background_opacity,
             x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
             y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
             x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,
@@ -250,6 +237,52 @@ class ChartView(BaseChartView):
         # After drawing the chart, add selection markers if needed
         if self.selected_stitches:
             self.draw_selection_markers()
+
+    def render_background(self, chart_range):
+        """Render background image for the chart view"""
+        # Only proceed if background is enabled and we have an image
+        if not self.settings.get('background_image_enabled', False):
+            return
+
+        if self.background_image is None:
+            image_path = self.settings.get('background_image_path', '')
+            if image_path and os.path.exists(image_path):
+                self.load_background_image(image_path)
+            else:
+                return
+
+        # Get background opacity setting
+        background_opacity = self.settings.get('background_image_opacity', 0.3)
+
+        try:
+            # Extract the viewport range
+            range_row, range_col = chart_range
+
+            # Set the extent to cover the entire chart area
+            img_extent = [
+                0.5,                # Left edge
+                self.chart.cols+0.5,  # Right edge
+                self.chart.rows+0.5,  # Bottom edge (y-axis is inverted)
+                0.5                 # Top edge
+            ]
+
+            # Use imshow to display the background image covering the whole chart
+            self.ax.imshow(
+                self.background_image,
+                extent=img_extent,
+                aspect='auto',      # Allow stretching to fit
+                alpha=background_opacity,
+                zorder=1            # Below the stitches
+            )
+
+            # Set axis limits to match the current viewport
+            self.ax.set_xlim(range_col[0] + 0.5, range_col[1] + 0.5)
+            self.ax.set_ylim(range_row[1] + 0.5, range_row[0] + 0.5)
+
+            print(f"Chart background image displayed with extent {img_extent}")
+
+        except Exception as e:
+            print(f"Error rendering background image: {e}")
 
     def on_canvas_click(self, event):
         """Handle canvas click event by converting viewport coordinates to chart coordinates"""
