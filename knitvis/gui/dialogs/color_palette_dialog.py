@@ -250,7 +250,7 @@ class ColorPaletteDialog(QDialog):
 
         # Create a temporary copy of the palette for preview
         palette = self.chart.color_palette
-        preview_colors = [palette.get_color_by_index(
+        preview_colors = [palette.get_color_rgb_by_index(
             i) for i in range(palette.num_colors)]
 
         # Apply modifications to the preview

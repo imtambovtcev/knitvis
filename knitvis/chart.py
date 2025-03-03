@@ -198,6 +198,15 @@ class KnittingChart:
         else:
             raise TypeError("Input must be an integer or a list of integers")
 
+    def get_used_stitches_types(self, column_range=None, row_range=None):
+        """Return used stitch types in the chart."""
+        column_range = column_range or (0, self.cols)
+        row_range = row_range or (0, self.rows)
+
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
+
+        return np.unique(pattern_slice)
+
     def get_symbolic_pattern(self, column_range=None, row_range=None):
         """Returns the knitting pattern as an NxM NumPy array of stitch symbols, optimized."""
         column_range = column_range or (0, self.cols)
@@ -370,12 +379,12 @@ class KnittingChart:
             0: [np.array([
                 [x_padding, y_padding],
                 [x_padding, 1-y_padding],
-                [0.5-x_padding, y_padding],
+                [0.5-x_padding, -y_padding],
                 [0.5-x_padding, -1+y_padding]
             ]), np.array([
                 [-x_padding, y_padding],
                 [-x_padding, 1-y_padding],
-                [-0.5+x_padding, y_padding],
+                [-0.5+x_padding, -y_padding],
                 [-0.5+x_padding, -1+y_padding]
             ])],
             1: [np.array([
@@ -569,7 +578,7 @@ class KnittingChart:
                     color_idx = self.color_palette.add_color(color_rgb)
                 else:
                     # Create a new palette with the additional color
-                    unique_colors = [self.color_palette.get_color_by_index(i)
+                    unique_colors = [self.color_palette.get_color_rgb_by_index(i)
                                      for i in range(self.color_palette.num_colors)]
                     unique_colors.append(color_rgb)
                     self.color_palette = KnittingColorPalette(unique_colors)
@@ -638,7 +647,7 @@ class KnittingChart:
         palette_str = "\nColor Palette:\n"
         for i in range(self.color_palette.num_colors):
             tag = self.color_palette.short_tags[i]
-            color = self.color_palette.get_color_by_index(i)
+            color = self.color_palette.get_color_rgb_by_index(i)
             palette_str += f"  {tag}: {color}\n"
 
         return pattern_str + color_chart_str + palette_str

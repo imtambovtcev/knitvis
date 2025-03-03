@@ -71,7 +71,7 @@ def test_chart_view_update(qtbot, chart_view):
     """Test that the view updates when the chart changes"""
     # Directly trigger a view update without waiting for signal
     chart_view.update_view()
-    
+
     # Check that the chart is rendered (the axis has children)
     assert len(chart_view.ax.get_children()) > 0
 
@@ -83,8 +83,8 @@ def test_chart_view_click_signal(qtbot, chart_view):
         # Calculate where to click (center of a cell)
         # We simulate a click by calling the handler directly with mock event data
         class MockEvent:
-            xdata = 1.5  # Center of second cell
-            ydata = 1.5  # Center of second cell
+            xdata = 4.0  # Center of cell
+            ydata = 2.0  # Center of cell
 
         chart_view.on_canvas_click(MockEvent())
 
@@ -93,5 +93,5 @@ def test_chart_view_click_signal(qtbot, chart_view):
 
     # For the test chart size and viewport, clicking at 1.5, 1.5 should be row 3, col 1
     # (exact coordinates depend on how your on_canvas_click converts coordinates)
-    assert row == 3  # This may need adjustment based on your coordinate system
-    assert col == 1  # We clicked in the second column (index 1)
+    assert row == 1  # This may need adjustment based on your coordinate system
+    assert col == 3  # We clicked in the column (index 1)

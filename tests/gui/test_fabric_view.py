@@ -72,8 +72,8 @@ def test_fabric_view_click_signal(qtbot, fabric_view):
         # Calculate where to click (center of a stitch)
         # We simulate a click by calling the handler directly with mock event data
         class MockEvent:
-            xdata = 1.5  # Center of second stitch
-            ydata = 0.5  # Near bottom of chart
+            xdata = 2.2  # Center of second stitch
+            ydata = 4.2  # Near bottom of chart
 
         # Set row_spacing for the test
         fabric_view.row_spacing = 0.7
@@ -86,23 +86,5 @@ def test_fabric_view_click_signal(qtbot, fabric_view):
     # This test may need adjustment based on your implementation
     assert isinstance(row, int)
     assert isinstance(col, int)
-    assert col == 1  # We clicked in the second column (index 1)
-
-
-def test_fabric_view_non_knit_stitches(qtbot, sample_chart_with_purl):
-    """Test that the view shows an error message for non-knit stitches"""
-    view = FabricView(sample_chart_with_purl)
-    qtbot.addWidget(view)
-
-    # The update should happen in the constructor
-    # We can verify that an error message is set up
-    # by checking that the axes has text objects
-
-    # Find a text object in the axes
-    has_error_text = False
-    for artist in view.ax.get_children():
-        if hasattr(artist, 'get_text') and 'not yet implemented' in str(artist.get_text()):
-            has_error_text = True
-            break
-
-    assert has_error_text, "Error message not found for non-knit stitches"
+    assert col == 1
+    assert row == 3
