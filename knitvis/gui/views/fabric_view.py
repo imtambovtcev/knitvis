@@ -186,10 +186,10 @@ class FabricView(BaseChartView):
             # For fabric view, we need to adjust the extent slightly
             # to account for the different coordinate system
             img_extent = [
-                0,                  # Left edge
-                self.chart.cols+1,  # Right edge
-                self.chart.rows+1,  # Bottom edge (y-axis is inverted)
-                0                   # Top edge
+                0.5,                  # Left edge
+                self.chart.cols+0.5,  # Right edge
+                self.chart.rows+0.5,  # Bottom edge (y-axis is inverted)
+                0.5                   # Top edge
             ]
 
             # Use imshow to display the background image covering the whole fabric area
