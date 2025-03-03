@@ -31,6 +31,10 @@ class ChartView(BaseChartView):
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvas(self.figure)
 
+        # Add these lines to ensure the canvas can receive keyboard focus
+        self.canvas.setFocusPolicy(Qt.StrongFocus)
+        self.canvas.setFocus()
+
         # Allow figure to expand with window
         self.canvas.setSizePolicy(
             QSizePolicy.Expanding,
@@ -44,6 +48,9 @@ class ChartView(BaseChartView):
 
         # Connect click event
         self.canvas.mpl_connect("button_press_event", self.on_canvas_click)
+
+        # Add canvas event handling for keyboard events
+        self.canvas.mpl_connect('key_press_event', self.on_canvas_key_press)
 
         # Store selection visualization objects
         self.selection_markers = []
@@ -310,6 +317,13 @@ class ChartView(BaseChartView):
         if 0 <= chart_i < rows and 0 <= chart_j < cols:
             # Use base class method to handle the click
             self.handle_click(event, chart_i, chart_j)
+
+    def on_canvas_key_press(self, event):
+        """Handle key press events from matplotlib canvas"""
+        print(f"Canvas key press event received: {event.key}")  # Debug print
+        if event.key == 'escape':
+            print("ESC pressed in canvas - Clearing selection")
+            self.clear_selection()
 
     def draw_selection_markers(self):
         """Draw markers for selected stitches without redrawing the entire view"""

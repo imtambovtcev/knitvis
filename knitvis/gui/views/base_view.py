@@ -18,6 +18,9 @@ class BaseChartView(QWidget):
         super().__init__()
         self.chart = chart
 
+        # Add this line to ensure the widget can receive keyboard focus
+        self.setFocusPolicy(Qt.StrongFocus)
+
         # Initialize caching for better performance
         self._cache = {}
         self._background = None
@@ -259,8 +262,12 @@ class BaseChartView(QWidget):
 
     def keyPressEvent(self, event):
         """Handle key press events for selection mode"""
+        print(f"Key press event received: {event.key()}")  # Debug print
         if event.key() == Qt.Key_Shift:
             self.selection_active = True
+        elif event.key() == Qt.Key_Escape:
+            print("ESC pressed - Clearing selection")
+            self.clear_selection()
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
