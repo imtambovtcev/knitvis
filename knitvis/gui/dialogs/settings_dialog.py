@@ -81,6 +81,14 @@ class SettingsDialog(QDialog):
             self.settings_manager.get('show_col_numbers', True))
         display_layout.addRow("Show Column Numbers:", self.show_col_numbers)
 
+        # Add general opacity control
+        self.opacity = QDoubleSpinBox()
+        self.opacity.setRange(0.1, 1.0)
+        self.opacity.setSingleStep(0.05)
+        self.opacity.setDecimals(2)
+        self.opacity.setValue(self.settings_manager.get('opacity', 1.0))
+        display_layout.addRow("Default Opacity:", self.opacity)
+
         # Add tick frequency controls
         self.x_axis_ticks_every_n = QSpinBox()
         self.x_axis_ticks_every_n.setRange(1, 10)
@@ -151,6 +159,15 @@ class SettingsDialog(QDialog):
             self.settings_manager.get('chart_symbol_size', 12))
         appearance_layout.addRow("Symbol Size:", self.chart_symbol_size)
 
+        # Add chart-specific opacity control
+        self.chart_opacity = QDoubleSpinBox()
+        self.chart_opacity.setRange(0.1, 1.0)
+        self.chart_opacity.setSingleStep(0.05)
+        self.chart_opacity.setDecimals(2)
+        self.chart_opacity.setValue(
+            self.settings_manager.get('chart_opacity', 1.0))
+        appearance_layout.addRow("Chart Opacity:", self.chart_opacity)
+
         appearance_group.setLayout(appearance_layout)
         layout.addWidget(appearance_group)
 
@@ -189,6 +206,15 @@ class SettingsDialog(QDialog):
             self.settings_manager.get('fabric_padding', 0.01))
         stitch_layout.addRow("Stitch Padding:", self.fabric_padding)
 
+        # Add fabric-specific opacity control
+        self.fabric_opacity = QDoubleSpinBox()
+        self.fabric_opacity.setRange(0.1, 1.0)
+        self.fabric_opacity.setSingleStep(0.05)
+        self.fabric_opacity.setDecimals(2)
+        self.fabric_opacity.setValue(
+            self.settings_manager.get('fabric_opacity', 1.0))
+        stitch_layout.addRow("Fabric Opacity:", self.fabric_opacity)
+
         stitch_group.setLayout(stitch_layout)
         layout.addWidget(stitch_group)
 
@@ -202,6 +228,7 @@ class SettingsDialog(QDialog):
             'show_col_numbers': self.show_col_numbers.isChecked(),
             'default_row_zoom': self.default_row_zoom.value(),
             'default_col_zoom': self.default_col_zoom.value(),
+            'opacity': self.opacity.value(),  # General opacity
             'x_axis_ticks_every_n': self.x_axis_ticks_every_n.value(),
             'y_axis_ticks_every_n': self.y_axis_ticks_every_n.value(),
             'x_axis_ticks_numbers_every_n_tics': self.x_axis_ticks_numbers_every_n_tics.value(),
@@ -210,11 +237,13 @@ class SettingsDialog(QDialog):
             # Chart view settings
             'chart_cell_border': self.chart_cell_border.isChecked(),
             'chart_symbol_size': self.chart_symbol_size.value(),
+            'chart_opacity': self.chart_opacity.value(),  # Chart-specific opacity
 
             # Fabric view settings
             'fabric_show_outlines': self.fabric_show_outlines.isChecked(),
             'fabric_row_spacing': self.fabric_row_spacing.value(),
             'fabric_padding': self.fabric_padding.value(),
+            'fabric_opacity': self.fabric_opacity.value(),  # Fabric-specific opacity
         }
 
     def accept_settings(self):
@@ -238,6 +267,8 @@ class SettingsDialog(QDialog):
                 self.settings_manager.get('show_row_numbers'))
             self.show_col_numbers.setChecked(
                 self.settings_manager.get('show_col_numbers'))
+            self.opacity.setValue(self.settings_manager.get(
+                'opacity'))  # General opacity
             self.default_row_zoom.setValue(
                 self.settings_manager.get('default_row_zoom'))
             self.default_col_zoom.setValue(
@@ -258,6 +289,8 @@ class SettingsDialog(QDialog):
                 self.settings_manager.get('chart_cell_border'))
             self.chart_symbol_size.setValue(
                 self.settings_manager.get('chart_symbol_size'))
+            self.chart_opacity.setValue(
+                self.settings_manager.get('chart_opacity'))  # Chart opacity
 
             # Fabric settings
             self.fabric_show_outlines.setChecked(
@@ -266,5 +299,7 @@ class SettingsDialog(QDialog):
                 self.settings_manager.get('fabric_row_spacing'))
             self.fabric_padding.setValue(
                 self.settings_manager.get('fabric_padding'))
+            self.fabric_opacity.setValue(
+                self.settings_manager.get('fabric_opacity'))  # Fabric opacity
 
             self.settingsApplied.emit()

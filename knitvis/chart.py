@@ -267,7 +267,8 @@ class KnittingChart:
     def display_chart(self, fig=None, ax=None, ratio=None, show_borderline=True, fontsize=12, fontweight='bold',
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
-                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
+                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
+                      opacity: float = 1.0):  # Added opacity parameter with default 1.0 (fully opaque)
         """Optimized chart display using Matplotlib collections."""
         # Extract ranges
         range_row = (
@@ -323,7 +324,8 @@ class KnittingChart:
             rects,
             facecolors=normalized_colors,
             edgecolors='black' if show_borderline else 'none',
-            linewidths=0.5 if show_borderline else 0)
+            linewidths=0.5 if show_borderline else 0,
+            alpha=opacity)  # Apply opacity to the collection
         ax.add_collection(rect_collection)
 
         # Add text for symbols
@@ -373,7 +375,8 @@ class KnittingChart:
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
                       ratio=0.7, padding=0.01, show_outlines=False,
-                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1):
+                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
+                      opacity: float = 1.0):  # Added opacity parameter with default 1.0 (fully opaque)
         """Render fabric with optimized NumPy/matplotlib operations."""
 
         y_padding = 2*padding
@@ -437,13 +440,8 @@ class KnittingChart:
             stitch_mask = stitches == stitch_type
             symbol_indices = np.where(stitch_mask)
 
-            # print(
-            #     f"Drawing {len(symbol_indices[0])} stitches of type {self.index_to_stitch(stitch_type)}")
-
             # Extract colors for the specific stitch positions
             stitch_colors = normalized_colors[symbol_indices]
-
-            # print(f'stitch_colors = {stitch_colors}')
 
             # Create polygon vertices arrays
             patches = []
@@ -455,13 +453,13 @@ class KnittingChart:
             # Repeat each color by the number of shapes per stitch
             repeated_colors = np.repeat(
                 stitch_colors, len(stitch_shape), axis=0)
-            # print(f'Repeated colors shape: {repeated_colors.shape}')
 
             collection = PolyCollection(
                 patches,
                 facecolor=repeated_colors,
                 edgecolor=edgecolor,
                 linewidth=linewidth,
+                alpha=opacity,  # Apply opacity to the collection
                 zorder=2)
             ax.add_collection(collection)
 

@@ -63,6 +63,7 @@ class ChartView(BaseChartView):
         show_col_numbers = self.settings.get('show_col_numbers', True)
         cell_border = self.settings.get('cell_border', True)
         symbol_size = self.settings.get('symbol_size', 12)
+        opacity = self.settings.get('opacity', 1.0)  # Get opacity setting
         x_axis_ticks_every_n = self.settings.get('x_axis_ticks_every_n', 1)
         y_axis_ticks_every_n = self.settings.get('y_axis_ticks_every_n', 1)
         x_axis_ticks_numbers_every_n_tics = self.settings.get(
@@ -83,6 +84,7 @@ class ChartView(BaseChartView):
             fontweight='bold',
             ratio=None,
             show_borderline=cell_border,
+            opacity=opacity,  # Pass opacity to display_chart
             x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
             y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
             x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,

@@ -37,6 +37,8 @@ class FabricView(BaseChartView):
         # Use setdefault to avoid errors if settings is None
         self.settings.setdefault('show_outlines', False)
         self.settings.setdefault('row_spacing', 0.7)
+        self.settings.setdefault('padding', 0.01)
+        self.settings.setdefault('opacity', 1.0)  # Default opacity
 
         # Create a container for the chart and its controls
         container = QFrame()
@@ -74,10 +76,15 @@ class FabricView(BaseChartView):
 
         # Get parameters from settings
         show_outlines = self.settings.get('show_outlines', False)
-        # Direct value (no conversion needed)
         row_spacing = self.settings.get('row_spacing', 0.7)
+        padding = self.settings.get('padding', 0.01)
+        opacity = self.settings.get('opacity', 1.0)  # Get opacity setting
         show_row_numbers = self.settings.get('show_row_numbers', True)
         show_col_numbers = self.settings.get('show_col_numbers', True)
+        x_axis_ticks_every_n = self.settings.get('x_axis_ticks_every_n', 1)
+        y_axis_ticks_every_n = self.settings.get('y_axis_ticks_every_n', 1)
+        x_axis_ticks_numbers_every_n_tics = self.settings.get('x_axis_ticks_numbers_every_n_tics', 1)
+        y_axis_ticks_numbers_every_n_ticks = self.settings.get('y_axis_ticks_numbers_every_n_ticks', 1)
 
         # Store this for click handling calculations
         self.row_spacing = row_spacing
@@ -105,12 +112,13 @@ class FabricView(BaseChartView):
                 ax=self.ax,
                 chart_range=chart_range,
                 ratio=row_spacing,
-                padding=0.01,
+                padding=padding,
                 show_outlines=show_outlines,
-                x_axis_ticks_every_n=1 if show_col_numbers else 0,
-                y_axis_ticks_every_n=1 if show_row_numbers else 0,
-                x_axis_ticks_numbers_every_n_tics=1,
-                y_axis_ticks_numbers_every_n_ticks=1
+                opacity=opacity,  # Pass opacity to render_fabric
+                x_axis_ticks_every_n=x_axis_ticks_every_n if show_col_numbers else 0,
+                y_axis_ticks_every_n=y_axis_ticks_every_n if show_row_numbers else 0,
+                x_axis_ticks_numbers_every_n_tics=x_axis_ticks_numbers_every_n_tics,
+                y_axis_ticks_numbers_every_n_ticks=y_axis_ticks_numbers_every_n_ticks
             )
 
         except Exception as e:

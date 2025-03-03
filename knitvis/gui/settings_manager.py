@@ -19,15 +19,18 @@ class SettingsManager:
             'y_axis_ticks_every_n': 1,
             'x_axis_ticks_numbers_every_n_tics': 1,
             'y_axis_ticks_numbers_every_n_ticks': 1,
+            'opacity': 1.0,  # Default opacity - fully opaque
 
             # Chart view settings
             'chart_cell_border': True,
             'chart_symbol_size': 12,
+            'chart_opacity': 1.0,  # Chart-specific opacity
 
             # Fabric view settings
             'fabric_show_outlines': False,
             'fabric_row_spacing': 0.7,  # Direct value (not percentage)
             'fabric_padding': 0.01,
+            'fabric_opacity': 1.0,  # Fabric-specific opacity
         }
 
     def get(self, key, default=None):
@@ -81,6 +84,7 @@ class SettingsManager:
             'y_axis_ticks_every_n': self.get('y_axis_ticks_every_n'),
             'x_axis_ticks_numbers_every_n_tics': self.get('x_axis_ticks_numbers_every_n_tics'),
             'y_axis_ticks_numbers_every_n_ticks': self.get('y_axis_ticks_numbers_every_n_ticks'),
+            'opacity': self.get('opacity'),  # General opacity setting
         }
 
         if view_type == 'chart':
@@ -88,6 +92,8 @@ class SettingsManager:
                 **common_settings,
                 'cell_border': self.get('chart_cell_border'),
                 'symbol_size': self.get('chart_symbol_size'),
+                # Override with chart-specific opacity
+                'opacity': self.get('chart_opacity'),
             }
         elif view_type == 'fabric':
             return {
@@ -95,6 +101,8 @@ class SettingsManager:
                 'show_outlines': self.get('fabric_show_outlines'),
                 'row_spacing': self.get('fabric_row_spacing'),  # Direct value
                 'padding': self.get('fabric_padding'),
+                # Override with fabric-specific opacity
+                'opacity': self.get('fabric_opacity'),
             }
         else:
             return common_settings
