@@ -48,6 +48,7 @@ class ChartNavigationWidget(QFrame):
         self.row_zoom_slider.setValue(20)
         self.row_zoom_slider.setTracking(True)
         self.row_zoom_slider.valueChanged.connect(self._emit_viewport_changed)
+        self.row_zoom_slider.valueChanged.connect(self.on_row_zoom_changed)
         right_controls.addWidget(self.row_zoom_slider)
 
         # Add right controls to main layout
@@ -75,6 +76,7 @@ class ChartNavigationWidget(QFrame):
         self.col_zoom_slider.setValue(20)
         self.col_zoom_slider.setTracking(True)
         self.col_zoom_slider.valueChanged.connect(self._emit_viewport_changed)
+        self.col_zoom_slider.valueChanged.connect(self.on_col_zoom_changed)
         bottom_controls.addWidget(self.col_zoom_slider)
 
         # Add bottom controls to main layout
@@ -195,3 +197,11 @@ class ChartNavigationWidget(QFrame):
 
             # Emit viewport changed signal once for the complete update
             self._emit_viewport_changed()
+
+    def on_row_zoom_changed(self, value):
+        """Handle row zoom change"""
+        self._emit_viewport_changed()
+
+    def on_col_zoom_changed(self, value):
+        """Handle column zoom change"""
+        self._emit_viewport_changed()

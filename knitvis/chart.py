@@ -290,15 +290,14 @@ class KnittingChart:
                 print(
                     f"Displaying background image in display_chart: shape={background_image.shape}, dtype={background_image.dtype}")
 
-                # Set the extent to exactly match the current viewport, not the whole chart
-                # The coordinates go from bottom-left corner to top-right corner:
+                # Set the extent to exactly match the current viewport
                 # [left, right, bottom, top] in chart coordinates
-                img_extent = [0.5,       # Left edge
-                              self.cols+0.5,       # Right edge
-                              # Bottom edge (y-axis is inverted)
-                              self.rows+0.5,
-                              0.5        # Top edge
-                              ]
+                img_extent = [
+                    range_col[0] + 0.5,       # Left edge
+                    range_col[1] + 0.5,      # Right edge
+                    range_row[1] + 0.5,      # Bottom edge (y-axis is inverted)
+                    range_row[0] + 0.5       # Top edge
+                ]
 
                 # Use imshow to display the background image exactly in the viewport
                 ax.imshow(
@@ -459,15 +458,13 @@ class KnittingChart:
                 print(
                     f"Displaying background image in render_fabric: shape={background_image.shape}, dtype={background_image.dtype}")
 
-                # For fabric view, we need to adjust the extent to match the different coordinate system
-                # The fabric view has different coordinates with (0,0) at the top-left
-                # and each stitch having a base at (i+1,j+1)
-                img_extent = [0.5,       # Left edge
-                              self.cols+0.5,       # Right edge
-                              # Bottom edge (y-axis is inverted)
-                              self.rows+0.5,
-                              0.5        # Top edge
-                              ]
+                # Set the extent to exactly match the current viewport for fabric view
+                img_extent = [
+                    range_col[0] + 0,       # Left edge
+                    range_col[1] + 1,      # Right edge
+                    range_row[1] + 1,      # Bottom edge (y-axis is inverted)
+                    range_row[0] + 0       # Top edge
+                ]
 
                 # Use imshow to display the background image exactly in the viewport
                 ax.imshow(

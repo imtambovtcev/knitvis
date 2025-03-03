@@ -4,6 +4,7 @@ from PyQt5.QtGui import QColor
 
 from knitvis.chart import KnittingChart
 from knitvis.gui.widgets.chart_navigation import ChartNavigationWidget
+from knitvis.gui.views.chart_debug import debug_print, check_renderer_ready
 
 
 class BaseChartView(QWidget):
@@ -71,18 +72,18 @@ class BaseChartView(QWidget):
         """Clear all selected stitches"""
         if self.selected_stitches:
             self.selected_stitches = []
-            self.update_view()  # Redraw the entire view to clear all markers
+            self.clear_selection_markers()  # Just clear markers, don't redraw
 
     def add_to_selection(self, row, col):
         """Add a stitch to the current selection if not already selected"""
         if (row, col) not in self.selected_stitches:
             self.selected_stitches.append((row, col))
-            self.draw_selection_markers()
+            self.update_selection_markers()  # Update markers only
 
     def set_selection(self, row, col):
         """Set selection to a single stitch (clear any previous selection)"""
         self.selected_stitches = [(row, col)]
-        self.update_view()  # Full redraw to clear previous selections
+        self.update_selection_markers()  # Update markers only
 
     def toggle_selection(self, row, col):
         """Toggle selection for a stitch"""
@@ -90,7 +91,27 @@ class BaseChartView(QWidget):
             self.selected_stitches.remove((row, col))
         else:
             self.selected_stitches.append((row, col))
-        self.update_view()  # Redraw to update selection markers
+        self.update_selection_markers()  # Update markers only
+
+    def update_selection_markers(self):
+        """Update the selection markers without redrawing the entire view"""
+        self.clear_selection_markers()  # Remove existing markers
+        self.draw_selection_markers()   # Draw new markers
+
+    def clear_selection_markers(self):
+        """Clear only the selection markers without affecting the main view"""
+        # Remove any existing markers
+        for marker in self.selection_markers:
+            try:
+                marker.remove()
+            except:
+                # Handle any errors during removal
+                pass
+        self.selection_markers = []
+
+        # Redraw the canvas to remove the markers
+        if hasattr(self, 'canvas'):
+            self.canvas.draw()
 
     def show_context_menu(self, event, chart_row, chart_col):
         """Show context menu for stitches"""
@@ -165,6 +186,16 @@ class BaseChartView(QWidget):
 
     def on_viewport_changed(self, row, col, row_zoom, col_zoom):
         """Handle viewport parameter changes from navigation widget"""
+        # Force a complete redraw when the viewport changes
+        # This ensures all traces from previous views are cleared
+        if hasattr(self, 'figure'):
+            self.figure.clear()
+
+        # Reset all caches and tracking
+        self.clear_cache()
+        self.clear_selection_markers()
+
+        # Now call the view update
         self.update_view()
 
     def get_viewport_parameters(self):
@@ -192,13 +223,33 @@ class BaseChartView(QWidget):
 
     def cache_background(self):
         """Cache the static background for blitting"""
-        if hasattr(self, 'canvas'):
-            self._background = self.canvas.copy_from_bbox(self.ax.bbox)
+        if hasattr(self, 'canvas') and hasattr(self, 'ax'):
+            try:
+                # Make sure we have a renderer
+                if hasattr(self.canvas, 'renderer') and self.canvas.renderer is not None:
+                    # Copy the renderer state to a background buffer
+                    self._background = self.canvas.copy_from_bbox(self.ax.bbox)
+                    debug_print("Background cached successfully")
+                    return True
+                else:
+                    # We don't have a renderer yet, probably first draw
+                    debug_print("Canvas renderer not ready yet")
+                    self._background = None
+            except Exception as e:
+                debug_print(f"Error caching background: {e}")
+                self._background = None
+        return False
 
     def restore_background(self):
         """Restore the cached background for blitting"""
-        if self._background is not None:
-            self.canvas.restore_region(self._background)
+        if self._background is not None and hasattr(self, 'canvas'):
+            try:
+                self.canvas.restore_region(self._background)
+                return True
+            except Exception as e:
+                debug_print(f"Error restoring background: {e}")
+                self._background = None  # Clear invalid background
+        return False
 
     def keyPressEvent(self, event):
         """Handle key press events for selection mode"""

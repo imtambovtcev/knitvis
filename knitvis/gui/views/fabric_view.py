@@ -77,6 +77,7 @@ class FabricView(BaseChartView):
         return 'fabric'
 
     def update_view(self):
+        """Update the entire view (expensive operation)"""
         if not self.chart:
             return
 
@@ -86,6 +87,9 @@ class FabricView(BaseChartView):
         # Clear the figure
         self.figure.clear()
         self.ax = self.figure.add_subplot(111)
+
+        # Clear selection markers list since we're rebuilding everything
+        self.selection_markers = []
 
         # Get parameters from settings
         show_outlines = self.settings.get('show_outlines', False)
@@ -153,7 +157,13 @@ class FabricView(BaseChartView):
                 y_axis_ticks_numbers_every_n_ticks=y_axis_ticks_numbers_every_n_ticks
             )
 
-            # Draw selection markers if any are selected
+            # Draw the base chart to the canvas
+            self.canvas.draw()
+
+            # Cache the background AFTER drawing but BEFORE adding markers
+            self.cache_background()
+
+            # After drawing the fabric, add selection markers if needed
             if self.selected_stitches:
                 self.draw_selection_markers()
 
@@ -165,12 +175,7 @@ class FabricView(BaseChartView):
                          transform=self.ax.transAxes,
                          fontsize=12)
             self.ax.set_axis_off()
-
-        self.canvas.draw()
-
-        # After drawing the fabric, draw selection markers
-        if self.selected_stitches:
-            self.draw_selection_markers()
+            self.canvas.draw()
 
     @staticmethod
     def is_point_inside_polygon(x, y, shape):
@@ -200,45 +205,56 @@ class FabricView(BaseChartView):
         print(f"Click at ({x}, {y})")
         print(f'{start_row = } {end_row = } {start_col = } {end_col = }')
 
-        if start_row-1 < x < end_row+1 and start_col-1 < y < end_col+1:
-            print("Click inside viewport")
-            expected_row = round(x)
-            expected_col = round(y)
+        # Check if click is within the chart area
+        if start_row <= x <= end_row and start_col <= y <= end_col:
+            try:
+                expected_row = round(x)
+                expected_col = round(y)
 
-            test_rows = [
-                (expected_row, expected_col),
-                (expected_row, expected_col+1),
-                (expected_row, expected_col-1),
-                (expected_row+1, expected_col),
-                (expected_row-1, expected_col),]
+                test_positions = [
+                    (expected_row, expected_col),
+                    (expected_row, expected_col+1),
+                    (expected_row, expected_col-1),
+                    (expected_row+1, expected_col),
+                    (expected_row-1, expected_col),
+                ]
 
-            correct_index = None
-            for row, col in test_rows:
-                if not (start_row <= row-1 < end_row and start_col <= col-1 < end_col):
-                    continue
-                stitch_type = self.chart.pattern[col-1, row-1]
-                if stitch_type not in self.STITCHES_SHAPES:
-                    continue
-                shape = self.STITCHES_SHAPES[stitch_type]
-                if self.is_point_inside_polygon(x-row, y-col, shape):
-                    correct_index = (row, col)
-                    break
+                # Find the stitch that was clicked
+                for row, col in test_positions:
+                    # Check if within viewport and valid chart coordinates
+                    if row-1 < start_row or row-1 >= end_row or col-1 < start_col or col-1 >= end_col:
+                        continue
 
-            if correct_index:
-                print(f"Clicked on stitch at {correct_index}")
-                chart_row, chart_col = correct_index[1]-1, correct_index[0]-1
+                    # Check if stitch type is valid
+                    stitch_type = self.chart.pattern[col-1, row-1]
+                    if stitch_type not in self.STITCHES_SHAPES:
+                        continue
 
-                # Use base class method to handle the click
-                self.handle_click(event, chart_row, chart_col)
-            else:
-                print("Clicked outside of any stitch")
+                    # Check if click is inside the stitch shape
+                    shape = self.STITCHES_SHAPES[stitch_type]
+                    if self.is_point_inside_polygon(x-row, y-col, shape):
+                        # Found the clicked stitch
+                        chart_row, chart_col = col-1, row-1
+                        print(
+                            f"Clicked on stitch at chart coordinates ({chart_row}, {chart_col})")
+                        self.handle_click(event, chart_row, chart_col)
+                        return
+
+                print("Click didn't hit any stitch precisely")
+
+            except Exception as e:
+                print(f"Error processing click: {e}")
+        else:
+            print("Click outside chart area")
 
     def draw_selection_markers(self):
-        """Draw markers for selected stitches in the fabric view"""
+        """Draw markers for selected stitches without redrawing the entire view"""
         # Remove any existing selection markers
         for marker in self.selection_markers:
-            if marker in self.ax.patches:
+            try:
                 marker.remove()
+            except:
+                pass
         self.selection_markers = []
 
         # Get viewport parameters
@@ -265,9 +281,21 @@ class FabricView(BaseChartView):
             )
             self.selection_markers.append(marker)
 
-        # Update the canvas
+        # Update only the markers - much faster than redrawing the whole chart
         if hasattr(self, 'canvas'):
-            self.canvas.draw()
+            # If we have cached the background, restore it and just draw the markers
+            if self._background is not None:
+                self.canvas.restore_region(self._background)
+
+                # Draw each marker onto the canvas
+                for marker in self.selection_markers:
+                    self.ax.draw_artist(marker)
+
+                # Update the display with the new markers
+                self.canvas.blit(self.ax.bbox)
+            else:
+                # Fall back to full redraw if no background is cached
+                self.canvas.draw()
 
     def show_context_menu(self, event, chart_row=None, chart_col=None):
         """Show context menu for single or multiple stitch operations"""

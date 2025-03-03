@@ -169,15 +169,20 @@ class ChartView(BaseChartView):
         return 'chart'
 
     def update_view(self):
+        """Update the entire view (expensive operation)"""
         if not self.chart:
             return
 
         # Update navigation limits first
         self.update_navigation_limits()
 
-        # Clear the axis and cache
-        self.ax.clear()
+        # IMPORTANT: Clear *everything* first to avoid traces
+        self.figure.clear()  # Clear the entire figure, not just the axis
+        self.ax = self.figure.add_subplot(111)  # Create a fresh axis
+
+        # Reset all state tracking
         self.clear_cache()
+        self.selection_markers = []
 
         # Get viewport parameters
         start_row, start_col, row_zoom, col_zoom = self.get_viewport_parameters()
@@ -218,7 +223,7 @@ class ChartView(BaseChartView):
         chart_range = ((start_row, start_row + viewport_rows),
                        (start_col, start_col + viewport_cols))
 
-        # Use display_chart method from KnittingChart
+        # Use display_chart method from KnittingChart to render the base chart
         self.chart.display_chart(
             fig=self.figure,
             ax=self.ax,
@@ -236,17 +241,13 @@ class ChartView(BaseChartView):
             y_axis_ticks_numbers_every_n_ticks=y_axis_ticks_numbers_every_n_ticks
         )
 
-        # Cache the static background
-        self.cache_background()
-
-        # Draw selection markers if any are selected
-        if self.selected_stitches:
-            self.draw_selection_markers()
-
-        # Draw everything
+        # Draw everything before adding markers
         self.canvas.draw()
 
-        # After drawing the chart, draw selection markers
+        # Only attempt to cache background AFTER drawing
+        self.cache_background()
+
+        # After drawing the chart, add selection markers if needed
         if self.selected_stitches:
             self.draw_selection_markers()
 
@@ -277,11 +278,15 @@ class ChartView(BaseChartView):
             self.handle_click(event, chart_i, chart_j)
 
     def draw_selection_markers(self):
-        """Draw markers for selected stitches in the chart view"""
-        # Remove any existing selection markers
+        """Draw markers for selected stitches without redrawing the entire view"""
+        # Make sure all previous markers are removed
         for marker in self.selection_markers:
-            if marker in self.ax.patches:
-                marker.remove()
+            try:
+                if marker in self.ax.patches:
+                    marker.remove()
+            except:
+                pass
+
         self.selection_markers = []
 
         # Get viewport parameters
@@ -298,22 +303,23 @@ class ChartView(BaseChartView):
             if not (start_row <= row < end_row and start_col <= col < end_col):
                 continue
 
-            # Draw a colored dot marker in the corner of the cell
-            dot_size = 20  # Size in points
-            marker = self.ax.plot(
-                # Position at top-right corner
-                col + 1,  # X position
-                row + 1,  # Y position
-                'ro',  # Red circle marker
-                markersize=dot_size * 0.4,
+            # For chart view, draw a highlight rectangle for the cell
+            marker = patches.Rectangle(
+                xy=(col + 0.5, row + 0.5),  # Bottom-left corner
+                width=1.0,
+                height=1.0,
+                edgecolor='red',
+                facecolor='none',
+                linewidth=2.0,
                 alpha=0.8,
-                zorder=5  # Above everything else
-            )[0]
+                zorder=10  # Ensure it's above everything
+            )
+            self.ax.add_patch(marker)
             self.selection_markers.append(marker)
 
-        # Update the canvas - only draw the markers, not the entire view
-        if hasattr(self, 'canvas'):
-            self.canvas.draw()
+        # Only update the display if there are markers to show
+        if self.selection_markers and hasattr(self, 'canvas'):
+            self.canvas.draw()  # Just draw everything for reliability
 
     def edit_single_stitch(self):
         """Edit a single selected stitch"""
