@@ -98,8 +98,8 @@ class DoubleKnittingCanvas:
         pattern = self.create_knitting_pattern()
 
         # Expand colors for visualization
-        front_colors = self.front_chart.get_symbolic_colors()
-        back_colors = self.back_chart.get_symbolic_colors()
+        front_colors = self.front_chart.get_colors_rgb()
+        back_colors = self.back_chart.get_colors_rgb()
 
         # Interleave color data
         height, width, _ = front_colors.shape
@@ -127,8 +127,8 @@ class DoubleKnittingCanvas:
         total_rows = pattern.shape[0]
 
         # Expand colors for visualization
-        front_colors = self.front_chart.get_symbolic_colors()
-        back_colors = self.back_chart.get_symbolic_colors()
+        front_colors = self.front_chart.get_colors_rgb()
+        back_colors = self.back_chart.get_colors_rgb()
 
         # Interleave colors
         height, width, _ = front_colors.shape
