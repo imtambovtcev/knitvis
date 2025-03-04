@@ -232,43 +232,44 @@ class FabricView(BaseChartView):
         end_row = min(start_row + row_zoom, rows)
         end_col = min(start_col + col_zoom, cols)
 
-        # Calculate row and column from click coordinates
-        x = event.xdata
-        y = event.ydata
+        # Click coordinates (x,y) map to (col,row) in fabric view
+        col = event.xdata
+        row = event.ydata
 
-        print(f"Click at ({x}, {y})")
+        print(f"Click at ({col}, {row})")
         print(f'{start_row = } {end_row = } {start_col = } {end_col = }')
 
         # Check if click is within the chart area
-        if start_row <= x <= end_row and start_col <= y <= end_col:
+        if start_col <= col <= end_col and start_row <= row <= end_row:
             try:
-                expected_row = round(x)
-                expected_col = round(y)
+                expected_col = round(col)
+                expected_row = round(row)
 
                 test_positions = [
                     (expected_row, expected_col),
-                    (expected_row, expected_col+1),
-                    (expected_row, expected_col-1),
                     (expected_row+1, expected_col),
                     (expected_row-1, expected_col),
+                    (expected_row, expected_col+1),
+                    (expected_row, expected_col-1),
                 ]
 
                 # Find the stitch that was clicked
-                for row, col in test_positions:
+                for test_row, test_col in test_positions:
                     # Check if within viewport and valid chart coordinates
-                    if row-1 < start_row or row-1 >= end_row or col-1 < start_col or col-1 >= end_col:
+                    if test_row-1 < start_row or test_row-1 >= end_row or \
+                       test_col-1 < start_col or test_col-1 >= end_col:
                         continue
 
                     # Check if stitch type is valid
-                    stitch_type = self.chart.pattern[col-1, row-1]
+                    stitch_type = self.chart.pattern[test_row-1, test_col-1]
                     if stitch_type not in self.STITCHES_SHAPES:
                         continue
 
                     # Check if click is inside the stitch shape
                     shape = self.STITCHES_SHAPES[stitch_type]
-                    if self.is_point_inside_polygon(x-row, y-col, shape):
+                    if self.is_point_inside_polygon(col-test_col, row-test_row, shape):
                         # Found the clicked stitch
-                        chart_row, chart_col = col-1, row-1
+                        chart_row, chart_col = test_row-1, test_col-1
                         print(
                             f"Clicked on stitch at chart coordinates ({chart_row}, {chart_col})")
                         self.handle_click(event, chart_row, chart_col)
