@@ -203,7 +203,7 @@ class KnittingChart:
         column_range = column_range or (0, self.cols)
         row_range = row_range or (0, self.rows)
 
-        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         return np.unique(pattern_slice)
 
@@ -213,7 +213,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to symbols
         vectorized_index_to_symbol = np.vectorize(self.index_to_symbol)
@@ -225,7 +225,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the pattern slice
-        pattern_slice = self.pattern[row_range[0]                                     :row_range[1], column_range[0]:column_range[1]]
+        pattern_slice = self.pattern[row_range[0]:row_range[1], column_range[0]:column_range[1]]
 
         # Use vectorized function to map stitch indices to names
         vectorized_index_to_stitch = np.vectorize(self.index_to_stitch)
@@ -239,7 +239,8 @@ class KnittingChart:
         color_tags = np.empty((self.rows, self.cols), dtype='<U4')
 
         # Extract the relevant slice of color indices
-        indices_slice = self.color_indices[row_range[0]:row_range[1], column_range[0]:column_range[1]]
+        indices_slice = self.color_indices[row_range[0]
+            :row_range[1], column_range[0]:column_range[1]]
 
         # Get the color tags for the sliced indices
         color_tags[row_range[0]:row_range[1], column_range[0]:column_range[1]] = np.array(
@@ -254,8 +255,7 @@ class KnittingChart:
         row_range = row_range or (0, self.rows)
 
         # Extract the relevant slice of color indices
-        indices_slice = self.color_indices[row_range[0]
-            :row_range[1], column_range[0]:column_range[1]]
+        indices_slice = self.color_indices[row_range[0]                                           :row_range[1], column_range[0]:column_range[1]]
 
         # Get the RGB values for the sliced indices
         rgb_colors = np.array(
@@ -267,8 +267,9 @@ class KnittingChart:
     def display_chart(self, fig=None, ax=None, ratio=None, show_borderline=True, fontsize=12, fontweight='bold',
                       chart_range: tuple[tuple[int, int] | None,
                                          tuple[int, int] | None] | None = None,
-                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1, x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
-                      opacity: float = 1.0):
+                      x_axis_ticks_every_n: int | None = 1, y_axis_ticks_every_n: int | None = 1,
+                      x_axis_ticks_numbers_every_n_tics: int | None = 1, y_axis_ticks_numbers_every_n_ticks: int | None = 1,
+                      axis_label_fontsize: int = 10, opacity: float = 1.0):
         """Optimized chart display using Matplotlib collections."""
         # Extract ranges
         range_row = (
@@ -351,7 +352,7 @@ class KnittingChart:
                 tick_labels = tick_labels.astype(str)
                 tick_labels[np.where(tick_labels.astype(int) %
                                      x_axis_ticks_numbers_every_n_tics != 0)] = ''
-                ax.set_xticklabels(tick_labels)
+                ax.set_xticklabels(tick_labels, fontsize=axis_label_fontsize)
         else:
             ax.set_xticks([])
 
@@ -364,7 +365,7 @@ class KnittingChart:
                 tick_labels = tick_labels.astype(str)
                 tick_labels[np.where(tick_labels.astype(int) %
                                      y_axis_ticks_numbers_every_n_ticks != 0)] = ''
-                ax.set_yticklabels(tick_labels)
+                ax.set_yticklabels(tick_labels, fontsize=axis_label_fontsize)
         else:
             ax.set_yticks([])
 
