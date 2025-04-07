@@ -114,8 +114,8 @@ class KnittingChart:
         'YO': 'O',   # Yarn over
         'K2tog': '/',  # Knit two together (right decrease)
         'SSK': '\\',  # Slip slip knit (left decrease)
-        'C4F': 'X',  # Cable Front
-        'C4B': 'X',  # Cable Back
+        'C4F': '↙',  # Cable Front
+        'C4B': '↘',  # Cable Back
         'BO': '-',   # Bind off
         'CO': '_',   # Cast on
     }
