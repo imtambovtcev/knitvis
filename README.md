@@ -1,4 +1,5 @@
 # KnitVis
+![logo](image/README/logo.png)
 
 A Python toolkit for visualizing and designing double knitting patterns.
 
@@ -11,6 +12,8 @@ KnitVis helps knitters design and visualize double knitting projects. It provide
 - Convert between different pattern representations
 - Support for colorwork in double knitting projects
 
+![preview](image/README/smile.png)
+
 ## Installation
 
 ```bash
@@ -19,36 +22,68 @@ pip install knitvis
 
 ## Features
 
-- **Double Knitting Canvas**: Create and manipulate binary patterns for double knitting projects
 - **Knitting Chart Generation**: Convert patterns to knitting charts with symbols for knit and purl stitches
 - **Colorwork Support**: Define custom color palettes for your projects
 - **Progress Tracking**: Log your knitting progress with row and section tracking
 - **Pattern Visualization**: See how your pattern will look when knitted
 - **JSON Import/Export**: Save and load your patterns in JSON format
+- **GUI**: Powerful PyQt GUI with support of backgrounds and multiple editing modes
+- **Double Knitting Canvas**: Create and manipulate binary patterns for double knitting projects
 
 ## Usage Examples
 
 ### Basic Usage
 
 ```python
+"""
+Basic KnitVis usage example: Heart pattern
+
+This example demonstrates how to:
+1. Create a simple knitted heart pattern
+2. Define custom colors for the pattern
+3. Render it as a realistic knitted fabric 
+4. Also display the standard chart representation
+"""
+
+from knitvis.chart import KnittingChart
 import numpy as np
-from knitvis import DoubleKnittingCanvas, KnittingChart
+import matplotlib.pyplot as plt
 
-# Create a simple pattern
-pattern = np.zeros((10, 10), dtype=bool)
-pattern[2:8, 2:8] = True  # Create a square
+# Define a simple heart pattern using a boolean array
+heart_colors = np.array([
+    [0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 1, 0, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0],
+    [0, 0, 1, 1, 1, 0, 0],
+    [0, 0, 0, 1, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+], dtype=bool)
 
-# Create a canvas with colors
-canvas = DoubleKnittingCanvas(pattern, front_color="blue", back_color="grey")
+# Create a pattern with all knit stitches
+pattern = np.zeros(heart_colors.shape, dtype=int)
 
-# Display the canvas
-canvas.display()
+# Define colors for the pattern
+colors = np.zeros((*pattern.shape, 3), dtype=int)
+colors.fill(180)  # Fill with gray (180,180,180)
 
-# Get a knitting chart
-chart = canvas.get_knitting_chart()
+# Set heart sections to red
+for i in range(pattern.shape[0]):
+    for j in range(pattern.shape[1]):
+        if heart_colors[i, j]:
+            colors[i, j] = [220, 50, 50]  # Red for heart
 
-# Display the knitting pattern
-canvas.display_knitting_pattern()
+# Create the knitting chart with our pattern and colors
+chart = KnittingChart(pattern, colors)
+
+# Render the pattern as realistic knitted fabric
+fig = chart.render_fabric()
+
+# Also show the original chart representation
+chart.display_chart()
+
+# Show the visualizations
+plt.show()
 ```
 
 ### Loading Patterns from JSON
@@ -62,22 +97,13 @@ chart = KnittingChart.from_json("my_pattern.json")
 # Do something with the chart
 ```
 
-### Progress Tracking
+### GUI
 
-```python
-import logging
-from datetime import datetime
-
-# Set up logging
-logging.basicConfig(filename='knitting_log.txt', level=logging.INFO)
-
-# Log your progress
-row = 5
-part = "left"
-direction = "->"
-log_message = f'{datetime.now()} - Rows {row} and {row+1}, {part} part {direction}'
-logging.info(log_message)
+```shell
+python3 knitvis/gui/main.py
 ```
+
+![gui](image/README/gui.png)
 
 ## Documentation
 
