@@ -8,20 +8,20 @@ from scipy.spatial import KDTree
 class KnittingColorPalette:
     """Stores RGB colors and assigns integer indices based on proximity to reference colors."""
 
-    # Default knitting color names with short tags and reference RGB values
+    # Default knitting color names with short tags and multiple reference RGB values
     REFERENCE_COLORS = {
-        "White": ("W", (255, 255, 255)),
-        "Black": ("B", (0, 0, 0)),
-        "Gray": ("Gy", (128, 128, 128)),
-        "Red": ("R", (255, 0, 0)),
-        "Orange": ("O", (255, 165, 0)),
-        "Yellow": ("Y", (255, 255, 0)),
-        "Green": ("Gr", (0, 128, 0)),  # Prevents confusion with Gray
-        "Blue": ("Bl", (0, 0, 255)),  # Ensures 'B' stays for Black
-        "Navy": ("N", (0, 0, 128)),
-        "Purple": ("P", (128, 0, 128)),
-        "Pink": ("Pi", (255, 182, 193)),
-        "Brown": ("Br", (165, 42, 42))
+        "White": ("W", [(255, 255, 255)]),
+        "Black": ("B", [(0, 0, 0)]),
+        "Gray": ("Gy", [(128, 128, 128), (150, 150, 150), (180, 180, 180), (200, 200, 200), (100, 100, 100)]),
+        "Red": ("R", [(255, 0, 0)]),
+        "Orange": ("O", [(255, 165, 0)]),
+        "Yellow": ("Y", [(255, 255, 0)]),
+        "Green": ("Gr", [(0, 128, 0)]),
+        "Blue": ("Bl", [(0, 0, 255), (0, 100, 255)]),
+        "Navy": ("N", [(0, 0, 128)]),
+        "Purple": ("P", [(128, 0, 128)]),
+        "Pink": ("Pi", [(255, 192, 203), (255, 182, 193)]),
+        "Brown": ("Br", [(165, 42, 42)])
     }
 
     def __init__(self, colors):
@@ -33,20 +33,27 @@ class KnittingColorPalette:
             colors, dtype=int)  # Store colors as NumPy matrix
         self.num_colors = len(colors)  # Track how many colors are assigned
 
-        # Use KDTree to find the closest reference color for each input color
-        ref_colors = np.array(
-            [v[1] for v in self.REFERENCE_COLORS.values()], dtype=int)
-        color_tree = KDTree(ref_colors)
+        # Flatten reference colors for KDTree
+        flat_ref_colors = []
+        ref_color_to_name = {}
+        for name, (tag, ref_colors_list) in self.REFERENCE_COLORS.items():
+            for ref_color in ref_colors_list:
+                flat_ref_colors.append(ref_color)
+                ref_color_to_name[ref_color] = (name, tag)
+
+        # Convert to numpy array for KDTree
+        ref_colors_array = np.array(flat_ref_colors, dtype=int)
+        color_tree = KDTree(ref_colors_array)
 
         # Name mapping
         assigned_full_names = []
         assigned_short_tags = []
         name_counts = {}
 
-        for color in colors:
+        for color in self.assigned_colors:
             _, idx = color_tree.query(color)  # Find closest reference color
-            base_name, short_tag = list(self.REFERENCE_COLORS.keys())[
-                idx], list(self.REFERENCE_COLORS.values())[idx][0]
+            ref_color = tuple(ref_colors_array[idx].tolist())
+            base_name, short_tag = ref_color_to_name[ref_color]
 
             # Track multiple shades using a counter
             if base_name in name_counts:
@@ -115,9 +122,10 @@ class KnittingColorPalette:
             return tuple(self.assigned_colors[idx].tolist())
         return None  # Tag not found
 
-    def display_palette(self):
+    def display_palette(self, fig=None, ax=None):
         """Returns a Matplotlib figure displaying the assigned color palette."""
-        fig, ax = plt.subplots(figsize=(self.num_colors * 0.8, 1.5))
+        if fig is None or ax is None:
+            fig, ax = plt.subplots(figsize=(self.num_colors * 0.8, 1.5))
         ax.set_xlim(0, self.num_colors)
         ax.set_ylim(0, 1)
         ax.set_xticks([])
@@ -218,13 +226,22 @@ class KnittingColorPalette:
         if existing_idx is not None and existing_idx != -1:
             return existing_idx
 
-        # Find closest reference color for naming
-        ref_colors = np.array(
-            [v[1] for v in self.REFERENCE_COLORS.values()], dtype=int)
-        color_tree = KDTree(ref_colors)
+        # Flatten reference colors for KDTree
+        flat_ref_colors = []
+        ref_color_to_name = {}
+        for name, (tag, ref_colors_list) in self.REFERENCE_COLORS.items():
+            for ref_color in ref_colors_list:
+                flat_ref_colors.append(ref_color)
+                ref_color_to_name[ref_color] = (name, tag)
+
+        # Convert to numpy array for KDTree
+        ref_colors_array = np.array(flat_ref_colors, dtype=int)
+        color_tree = KDTree(ref_colors_array)
+
+        # Find closest reference color
         _, idx = color_tree.query(color)
-        base_name, short_tag = list(self.REFERENCE_COLORS.keys())[
-            idx], list(self.REFERENCE_COLORS.values())[idx][0]
+        ref_color = tuple(ref_colors_array[idx].tolist())
+        base_name, short_tag = ref_color_to_name[ref_color]
 
         # Add counting suffix if needed
         count = np.sum(np.char.startswith(self.full_names, base_name))

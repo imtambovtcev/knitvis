@@ -100,8 +100,8 @@ def test_get_text_pattern(sample_knitting_chart):
 
 def test_get_colors_tags(sample_knitting_chart):
     """Tests if the symbolic color representation matches the original colors."""
-    expected_colors = np.array([['W', 'Pi', 'R', 'Gr2'],
-                                ['Bl', 'Gy', 'Pi2', 'O'],
+    expected_colors = np.array([['W', 'Gy2', 'R', 'Gr2'],
+                                ['Bl', 'Gy', 'Pi', 'O'],
                                 ['P', 'Br', 'Y', 'Gr']])  # Expected NxMx3 color array
 
     symbolic_colors = sample_knitting_chart.get_colors_tags()
